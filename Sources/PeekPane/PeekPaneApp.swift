@@ -37,7 +37,6 @@ struct PeekPaneApp: App {
                     Image(nsImage: GhostIconRenderer.templateImage(size: 14))
                 }
             }
-            .disabled(!coordinator.activeSessions.contains(where: \.isClickThrough))
 
             if !coordinator.activeSessions.isEmpty {
                 Button(role: .destructive) {
