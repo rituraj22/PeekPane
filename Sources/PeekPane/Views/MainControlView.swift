@@ -357,43 +357,86 @@ struct MainControlView: View {
                         }
                     }
 
-                    Spacer()
+                    Spacer(minLength: 12)
 
-                    // Quick crop presets
-                    HStack(spacing: 6) {
-                        Text("Region:")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Button("Full") {
-                            coordinator.draftCropRect = .full
-                        }
-                        .controlSize(.small)
-                        Button("Top Half") {
-                            coordinator.draftCropRect = NormalizedCropRect(x: 0, y: 0, width: 1, height: 0.5)
-                        }
-                        .controlSize(.small)
-                        Button("Bottom Half") {
-                            coordinator.draftCropRect = NormalizedCropRect(x: 0, y: 0.5, width: 1, height: 0.5)
-                        }
-                        .controlSize(.small)
-                        Button("Center") {
-                            coordinator.draftCropRect = NormalizedCropRect(x: 0.15, y: 0.15, width: 0.7, height: 0.7)
-                        }
-                        .controlSize(.small)
-                        if coordinator.draftCropRect != nil {
-                            Button("Clear") {
-                                coordinator.draftCropRect = nil
+                    // Compact 2×3 schematic preset grid + Clear button
+                    HStack(alignment: .center, spacing: 8) {
+                        Grid(horizontalSpacing: 4, verticalSpacing: 4) {
+                            GridRow {
+                                RegionPresetIconButton(
+                                    title: "Top Half",
+                                    highlightRect: CGRect(x: 0, y: 0, width: 1, height: 0.5),
+                                    isActive: coordinator.draftCropRect
+                                        == NormalizedCropRect(x: 0, y: 0, width: 1, height: 0.5)
+                                ) {
+                                    coordinator.draftCropRect = NormalizedCropRect(x: 0, y: 0, width: 1, height: 0.5)
+                                }
+
+                                RegionPresetIconButton(
+                                    title: "Left Half",
+                                    highlightRect: CGRect(x: 0, y: 0, width: 0.5, height: 1),
+                                    isActive: coordinator.draftCropRect
+                                        == NormalizedCropRect(x: 0, y: 0, width: 0.5, height: 1)
+                                ) {
+                                    coordinator.draftCropRect = NormalizedCropRect(x: 0, y: 0, width: 0.5, height: 1)
+                                }
+
+                                RegionPresetIconButton(
+                                    title: "Full Window",
+                                    highlightRect: CGRect(x: 0, y: 0, width: 1, height: 1),
+                                    isActive: coordinator.draftCropRect == .full
+                                ) {
+                                    coordinator.draftCropRect = .full
+                                }
                             }
-                            .controlSize(.small)
-                        }
-                    }
+                            GridRow {
+                                RegionPresetIconButton(
+                                    title: "Bottom Half",
+                                    highlightRect: CGRect(x: 0, y: 0.5, width: 1, height: 0.5),
+                                    isActive: coordinator.draftCropRect
+                                        == NormalizedCropRect(x: 0, y: 0.5, width: 1, height: 0.5)
+                                ) {
+                                    coordinator.draftCropRect = NormalizedCropRect(x: 0, y: 0.5, width: 1, height: 0.5)
+                                }
 
-                    Button {
-                        Task { await coordinator.refreshSelectedPreview() }
-                    } label: {
-                        Image(systemName: "camera.viewfinder")
+                                RegionPresetIconButton(
+                                    title: "Right Half",
+                                    highlightRect: CGRect(x: 0.5, y: 0, width: 0.5, height: 1),
+                                    isActive: coordinator.draftCropRect
+                                        == NormalizedCropRect(x: 0.5, y: 0, width: 0.5, height: 1)
+                                ) {
+                                    coordinator.draftCropRect = NormalizedCropRect(x: 0.5, y: 0, width: 0.5, height: 1)
+                                }
+
+                                RegionPresetIconButton(
+                                    title: "Center",
+                                    highlightRect: CGRect(x: 0.27, y: 0.27, width: 0.46, height: 0.46),
+                                    isActive: coordinator.draftCropRect
+                                        == NormalizedCropRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
+                                ) {
+                                    coordinator.draftCropRect = NormalizedCropRect(
+                                        x: 0.25,
+                                        y: 0.25,
+                                        width: 0.5,
+                                        height: 0.5
+                                    )
+                                }
+                            }
+                        }
+
+                        Button {
+                            coordinator.draftCropRect = nil
+                        } label: {
+                            Text("Clear")
+                                .font(.system(size: 11.5, weight: .medium))
+                                .padding(.horizontal, 6)
+                                .frame(height: 28)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(coordinator.draftCropRect == nil)
+                        .help("Clear crop selection")
                     }
-                    .help("Refresh window snapshot")
+                    .fixedSize()
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -471,6 +514,44 @@ struct MainControlView: View {
 }
 
 // MARK: - Sidebar Row Views
+
+private struct RegionPresetIconButton: View {
+    let title: String
+    let highlightRect: CGRect
+    let isActive: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Canvas { context, size in
+                let outer = CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
+                let framePath = Path(roundedRect: outer, cornerRadius: 2.5)
+                context.stroke(
+                    framePath,
+                    with: .color(isActive ? .accentColor : .primary.opacity(0.75)),
+                    lineWidth: 1.2
+                )
+
+                let inner = outer.insetBy(dx: 2.0, dy: 2.0)
+                let fillRect = CGRect(
+                    x: inner.minX + highlightRect.minX * inner.width,
+                    y: inner.minY + highlightRect.minY * inner.height,
+                    width: highlightRect.width * inner.width,
+                    height: highlightRect.height * inner.height
+                )
+                let fillPath = Path(roundedRect: fillRect, cornerRadius: 1.2)
+                context.fill(
+                    fillPath,
+                    with: .color(isActive ? .accentColor : .primary.opacity(0.85))
+                )
+            }
+            .frame(width: 16, height: 12)
+        }
+        .controlSize(.mini)
+        .help(title)
+        .accessibilityLabel(title)
+    }
+}
 
 private struct WindowRowView: View {
     let item: ShareableWindowItem
