@@ -4,7 +4,7 @@ cask "peekpane" do
 
   url "https://github.com/rituraj22/PeekPane/releases/download/v#{version}/PeekPane-#{version}-macos.zip"
   name "PeekPane"
-  desc "Float any cropped region of any Mac window in an always-on-top live PiP pane"
+  desc "Turn any slice of any Mac window into a live, always-on-top, click-through floating pane"
   homepage "https://github.com/rituraj22/PeekPane"
 
   livecheck do
