@@ -17,6 +17,10 @@
 </p>
 
 <p align="center">
+  <em>✨ Built 100% using <strong>Gemini Argon + Antigravity</strong></em>
+</p>
+
+<p align="center">
   <img src="assets/clip1-select-and-crop.gif" width="760" alt="PeekPane — Select a window, crop just the compact flight progress bar, and float it over your IDE" />
 </p>
 
@@ -179,3 +183,9 @@ For a deep dive into the rendering pipeline and coordinate math, see **[ARCHITEC
 ## 📄 License
 
 Released under the [MIT License](./LICENSE).
+
+---
+
+<p align="center">
+  Built 100% using <strong>Gemini Argon + Antigravity</strong>
+</p>
