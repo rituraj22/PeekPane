@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/rituraj22/PeekPane/releases/latest"><img src="https://img.shields.io/badge/Download-v1.0_Release-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Download Latest Release" /></a>
+  <a href="https://github.com/rituraj22/PeekPane/releases/latest"><img src="https://img.shields.io/badge/Download-v1.1_Release-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Download Latest Release" /></a>
   <img src="https://img.shields.io/badge/macOS-14.0%2B_(Sonoma_%2F_Sequoia)-1E293B?style=for-the-badge&logo=apple&logoColor=white" alt="macOS 14.0+" />
   <img src="https://img.shields.io/badge/Arch-Universal_(Apple_Silicon_%26_Intel)-334155?style=for-the-badge" alt="Universal Binary" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge" alt="MIT License" /></a>
@@ -124,7 +124,7 @@ brew install --cask peekpane
 ```
 
 ### Option 2: Download Prebuilt `.dmg` or `.zip`
-Download [**`PeekPane-1.0-macos.dmg`**](https://github.com/rituraj22/PeekPane/releases/latest) or [**`PeekPane-1.0-macos.zip`**](https://github.com/rituraj22/PeekPane/releases/latest) from the [Releases](https://github.com/rituraj22/PeekPane/releases) page, drag **PeekPane.app** to `/Applications`, and launch it.
+Download [**`PeekPane-1.1-macos.dmg`**](https://github.com/rituraj22/PeekPane/releases/latest) or [**`PeekPane-1.1-macos.zip`**](https://github.com/rituraj22/PeekPane/releases/latest) from the [Releases](https://github.com/rituraj22/PeekPane/releases) page, drag **PeekPane.app** to `/Applications`, and launch it.
 
 ### Option 3: Build from Source
 ```bash
@@ -150,7 +150,7 @@ make release
 ```text
 PeekPane/
 ├── Package.swift                 # SwiftPM manifest (.macOS(.v14), strict concurrency)
-├── Info.plist                    # App bundle metadata (com.peekpane.app, v1.0)
+├── Info.plist                    # App bundle metadata (com.peekpane.app, v1.1)
 ├── Entitlements.plist            # macOS Screen Capture & Apple Events entitlements
 ├── AppIcon.svg                   # Liquid Glass vector app icon source
 ├── Makefile                      # Standardized build, lint, universal & release targets

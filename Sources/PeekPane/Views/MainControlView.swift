@@ -32,7 +32,9 @@ final class AppCoordinator: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, !self.discovery.hasScreenRecordingPermission else { return }
+                guard let self,
+                    !self.discovery.hasScreenRecordingPermission || self.discovery.windows.isEmpty
+                else { return }
                 Task { @MainActor [weak self] in
                     await self?.initialLoad()
                 }
@@ -245,7 +247,8 @@ struct MainControlView: View {
                 } label: {
                     Label("Refresh Windows", systemImage: "arrow.clockwise")
                 }
-                .help("Refresh open windows list")
+                .keyboardShortcut("r", modifiers: .command)
+                .help("Refresh open windows list (⌘R)")
             }
         }
         .task {
