@@ -21,6 +21,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
       - name: Determine version
         id: meta
@@ -47,3 +52,19 @@ jobs:
             dist/PeekPane-${{ steps.meta.outputs.version }}-macos.dmg
             dist/SHA256SUMS.txt
             Casks/peekpane.rb
+
+      - name: Sync Homebrew Cask SHA-256 to main
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          ZIP_SHA256="$(shasum -a 256 "dist/PeekPane-${VERSION}-macos.zip" | awk '{print $1}')"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
+          sed -i '' -E "s/version \"[^\"]+\"/version \"${VERSION}\"/" Casks/peekpane.rb
+          sed -i '' -E "s/sha256 \"[^\"]+\"/sha256 \"${ZIP_SHA256}\"/" Casks/peekpane.rb
+          if ! git diff --quiet Casks/peekpane.rb; then
+            git add Casks/peekpane.rb
+            git commit -m "chore(cask): update peekpane.rb SHA-256 for v${VERSION} [skip ci]"
+            git push origin HEAD:main
+          fi
