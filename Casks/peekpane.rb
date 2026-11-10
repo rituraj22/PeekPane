@@ -1,6 +1,6 @@
 cask "peekpane" do
   version "1.1"
-  sha256 "2679693a46c80c24c3c25cacad2c52c4260432bd4796bd871bd144c662b4b77d"
+  sha256 "4288fb437ba2a8b5953cb274690ebaeb51c12b7773b0db24979288c1b55f783f"
 
   url "https://github.com/rituraj22/PeekPane/releases/download/v#{version}/PeekPane-#{version}-macos.zip"
   name "PeekPane"
