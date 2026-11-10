@@ -1,0 +1,9 @@
+.build/
+.swiftpm/
+PeekPane.app/
+dist/
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+.DS_Store

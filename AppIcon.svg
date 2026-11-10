@@ -1,0 +1,285 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- macOS Squircle Clip -->
+    <clipPath id="squircleClip">
+      <rect x="96" y="96" width="832" height="832" rx="190" ry="190" />
+    </clipPath>
+
+    <!-- Hero Liquid Glass Outer Clip -->
+    <clipPath id="heroGlassClip">
+      <rect x="224" y="212" width="576" height="368" rx="96" ry="96" />
+    </clipPath>
+
+    <!-- Interior Widget Clips -->
+    <clipPath id="orbClip">
+      <circle cx="389" cy="396" r="68" />
+    </clipPath>
+    <clipPath id="pillTopClip">
+      <rect x="511" y="328" width="200" height="56" rx="28" ry="28" />
+    </clipPath>
+    <clipPath id="pillBottomClip">
+      <rect x="511" y="408" width="150" height="56" rx="28" ry="28" />
+    </clipPath>
+
+    <!-- Hologram Beam Clip -->
+    <clipPath id="beamClip">
+      <polygon points="360,796 664,796 780,508 244,508" />
+    </clipPath>
+
+    <!-- Optical Blur Filters (userSpaceOnUse for reliable rendering across all SVG engines) -->
+    <filter id="meniscusBlur" filterUnits="userSpaceOnUse" x="140" y="130" width="744" height="530">
+      <feGaussianBlur stdDeviation="15" />
+    </filter>
+    <filter id="meniscusTightBlur" filterUnits="userSpaceOnUse" x="180" y="170" width="664" height="450">
+      <feGaussianBlur stdDeviation="5.5" />
+    </filter>
+    <filter id="widgetShadowBlur" filterUnits="userSpaceOnUse" x="280" y="290" width="480" height="230">
+      <feGaussianBlur stdDeviation="8" />
+    </filter>
+    <filter id="emitterGlowBlur" filterUnits="userSpaceOnUse" x="300" y="740" width="424" height="112">
+      <feGaussianBlur stdDeviation="12" />
+    </filter>
+    <filter id="heroElevationBlur" filterUnits="userSpaceOnUse" x="160" y="180" width="704" height="480">
+      <feGaussianBlur stdDeviation="18" />
+    </filter>
+
+    <!-- 1. Deep Spatial Midnight-to-Indigo Squircle Background -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#080C1D" />
+      <stop offset="52%" stop-color="#171642" />
+      <stop offset="100%" stop-color="#050711" />
+    </linearGradient>
+
+    <radialGradient id="topAurora" cx="24%" cy="18%" r="52%">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.22" />
+      <stop offset="55%" stop-color="#3B82F6" stop-opacity="0.07" />
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="horizonGlow" cx="50%" cy="64%" r="48%">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.32" />
+      <stop offset="50%" stop-color="#6366F1" stop-opacity="0.14" />
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- 2. Smoked-Glass Tilted Source Window Deck -->
+    <linearGradient id="deckGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2A3952" stop-opacity="0.92" />
+      <stop offset="48%" stop-color="#131C31" stop-opacity="0.96" />
+      <stop offset="100%" stop-color="#070B15" stop-opacity="0.98" />
+    </linearGradient>
+
+    <linearGradient id="deckStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#94A3B8" stop-opacity="0.45" />
+      <stop offset="22%" stop-color="#CBD5E1" stop-opacity="0.60" />
+      <stop offset="30%" stop-color="#64748B" stop-opacity="0.14" />
+      <stop offset="70%" stop-color="#64748B" stop-opacity="0.14" />
+      <stop offset="78%" stop-color="#CBD5E1" stop-opacity="0.60" />
+      <stop offset="100%" stop-color="#94A3B8" stop-opacity="0.45" />
+    </linearGradient>
+
+    <radialGradient id="deckCausticPool" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.56" />
+      <stop offset="45%" stop-color="#06B6D4" stop-opacity="0.22" />
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- 3. Seamless Volumetric Hologram Cone -->
+    <linearGradient id="beamGrad" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.92" />
+      <stop offset="48%" stop-color="#6366F1" stop-opacity="0.56" />
+      <stop offset="100%" stop-color="#C084FC" stop-opacity="0.20" />
+    </linearGradient>
+
+    <radialGradient id="beamCoreGlow" cx="50%" cy="88%" r="58%">
+      <stop offset="0%" stop-color="#A5F3FC" stop-opacity="0.68" />
+      <stop offset="45%" stop-color="#38BDF8" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#818CF8" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- 4. Apple Liquid Glass Hero PeekPane -->
+    <radialGradient id="heroShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#020617" stop-opacity="0.80" />
+      <stop offset="58%" stop-color="#050816" stop-opacity="0.42" />
+      <stop offset="100%" stop-color="#050816" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Translucent Jewel-Toned Liquid Glass Body -->
+    <linearGradient id="liquidGlassBase" x1="4%" y1="4%" x2="96%" y2="96%">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.90" />
+      <stop offset="36%" stop-color="#2563EB" stop-opacity="0.86" />
+      <stop offset="72%" stop-color="#4F46E5" stop-opacity="0.88" />
+      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0.92" />
+    </linearGradient>
+
+    <!-- Top-Left Convex Liquid Cushion -->
+    <radialGradient id="liquidTopLeftCushion" cx="18%" cy="14%" r="58%">
+      <stop offset="0%" stop-color="#A5F3FC" stop-opacity="0.72" />
+      <stop offset="45%" stop-color="#38BDF8" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Bottom-Right Prismatic Subsurface Glow -->
+    <radialGradient id="liquidBottomRightPrismatic" cx="84%" cy="88%" r="54%">
+      <stop offset="0%" stop-color="#E879F9" stop-opacity="0.52" />
+      <stop offset="52%" stop-color="#8B5CF6" stop-opacity="0.22" />
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Bottom-Center Upward Caustic Refraction From Hologram Beam -->
+    <radialGradient id="liquidBottomCaustic" cx="50%" cy="100%" r="58%">
+      <stop offset="0%" stop-color="#67E8F9" stop-opacity="0.52" />
+      <stop offset="48%" stop-color="#38BDF8" stop-opacity="0.20" />
+      <stop offset="100%" stop-color="#818CF8" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Curved Specular Reflection Wave Across Upper Glass -->
+    <linearGradient id="curvedWaveSheen" x1="12%" y1="0%" x2="54%" y2="68%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.36" />
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Prismatic Liquid Glass Meniscus Rim -->
+    <linearGradient id="prismaticMeniscusRim" x1="6%" y1="0%" x2="94%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1.0" />
+      <stop offset="28%" stop-color="#E0F2FE" stop-opacity="0.88" />
+      <stop offset="52%" stop-color="#7DD3FC" stop-opacity="0.60" />
+      <stop offset="78%" stop-color="#67E8F9" stop-opacity="0.88" />
+      <stop offset="92%" stop-color="#F5D0FE" stop-opacity="0.94" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="1.0" />
+    </linearGradient>
+
+    <!-- 5. Convex Frosted Liquid-Glass Interior Droplets -->
+    <radialGradient id="dropletOrbGrad" cx="32%" cy="24%" r="76%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1.0" />
+      <stop offset="70%" stop-color="#FFFFFF" stop-opacity="0.96" />
+      <stop offset="100%" stop-color="#E0F2FE" stop-opacity="0.90" />
+    </radialGradient>
+
+    <linearGradient id="dropletPillTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1.0" />
+      <stop offset="72%" stop-color="#F8FAFC" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#E0F2FE" stop-opacity="0.88" />
+    </linearGradient>
+
+    <linearGradient id="dropletPillBottom" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.86" />
+      <stop offset="100%" stop-color="#E0E7FF" stop-opacity="0.68" />
+    </linearGradient>
+
+    <linearGradient id="dropletSpecularRim" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1.0" />
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.50" />
+      <stop offset="100%" stop-color="#BAE6FD" stop-opacity="0.90" />
+    </linearGradient>
+
+    <linearGradient id="squircleRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.48" />
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="0.38" />
+    </linearGradient>
+  </defs>
+
+  <!-- Soft Outer Squircle Drop Shadow -->
+  <rect x="108" y="124" width="808" height="808" rx="190" ry="190" fill="#020617" fill-opacity="0.20" />
+  <rect x="102" y="114" width="820" height="820" rx="190" ry="190" fill="#020617" fill-opacity="0.16" />
+  <rect x="98" y="104" width="828" height="828" rx="190" ry="190" fill="#020617" fill-opacity="0.12" />
+
+  <!-- Squircle Base -->
+  <rect x="96" y="96" width="832" height="832" rx="190" ry="190" fill="url(#bgGrad)" />
+
+  <g clip-path="url(#squircleClip)">
+    <rect x="96" y="96" width="832" height="832" fill="url(#topAurora)" />
+    <rect x="96" y="96" width="832" height="832" fill="url(#horizonGlow)" />
+
+    <!-- ========================================================== -->
+    <!-- 1. 3D SMOKED-GLASS TILTED FLOOR DECK                       -->
+    <!-- ========================================================== -->
+    <path d="M 244 668 L 780 668 Q 798 668 804 685 L 908 944 L 116 944 L 220 685 Q 226 668 244 668 Z"
+          fill="url(#deckGrad)"
+          stroke="url(#deckStroke)"
+          stroke-width="9"
+          stroke-linejoin="round" />
+
+    <ellipse cx="512" cy="796" rx="215" ry="46" fill="url(#deckCausticPool)" />
+
+    <!-- Soft Optical Elevation Shadow Behind Hero Pane -->
+    <ellipse cx="512" cy="442" rx="316" ry="194" fill="url(#heroShadow)" />
+    <rect x="232" y="240" width="560" height="356" rx="92" ry="92" fill="#020617" fill-opacity="0.44" filter="url(#heroElevationBlur)" />
+
+    <!-- ========================================================== -->
+    <!-- 2. VOLUMETRIC CAUSTIC HOLOGRAM CONE                        -->
+    <!-- ========================================================== -->
+    <g clip-path="url(#beamClip)">
+      <rect x="240" y="500" width="544" height="304" fill="url(#beamGrad)" />
+      <rect x="240" y="500" width="544" height="304" fill="url(#beamCoreGlow)" />
+    </g>
+
+    <!-- Glowing Liquid-Light Origin Bar with Real Optical Bloom -->
+    <rect x="356" y="788" width="312" height="16" rx="8" ry="8" fill="#22D3EE" fill-opacity="0.75" filter="url(#emitterGlowBlur)" />
+    <line x1="364" y1="796" x2="660" y2="796" stroke="#67E8F9" stroke-opacity="0.96" stroke-width="9" stroke-linecap="round" />
+    <line x1="396" y1="796" x2="628" y2="796" stroke="#FFFFFF" stroke-opacity="0.94" stroke-width="3.5" stroke-linecap="round" />
+
+    <!-- ========================================================== -->
+    <!-- 3. LEVITATING APPLE LIQUID GLASS HERO PEEKPANE             -->
+    <!-- ========================================================== -->
+    <g clip-path="url(#heroGlassClip)">
+      <!-- Base Translucent Jewel-Toned Glass Slab -->
+      <rect x="224" y="212" width="576" height="368" fill="url(#liquidGlassBase)" />
+
+      <!-- Top-Left Convex Liquid Cushion, Bottom-Right Prismatic & Bottom Caustic Blooms -->
+      <rect x="224" y="212" width="576" height="368" fill="url(#liquidTopLeftCushion)" />
+      <rect x="224" y="212" width="576" height="368" fill="url(#liquidBottomRightPrismatic)" />
+      <rect x="224" y="212" width="576" height="368" fill="url(#liquidBottomCaustic)" />
+
+      <!-- Curved Specular Reflection Wave Across Upper Glass -->
+      <path d="M 216 204 L 808 204 L 808 352 C 632 326, 438 442, 216 502 Z"
+            fill="url(#curvedWaveSheen)" />
+
+      <!-- True Continuous Gaussian Liquid Meniscus Cushion -->
+      <rect x="224" y="212" width="576" height="368" rx="96" ry="96"
+            fill="none"
+            stroke="url(#prismaticMeniscusRim)"
+            stroke-width="46"
+            stroke-opacity="0.58"
+            filter="url(#meniscusBlur)" />
+
+      <rect x="224" y="212" width="576" height="368" rx="96" ry="96"
+            fill="none"
+            stroke="url(#prismaticMeniscusRim)"
+            stroke-width="18"
+            stroke-opacity="0.68"
+            filter="url(#meniscusTightBlur)" />
+    </g>
+
+    <!-- Razor-Crisp Outer Fresnel Specular Rim -->
+    <rect x="226" y="214" width="572" height="364" rx="94" ry="94"
+          fill="none"
+          stroke="url(#prismaticMeniscusRim)"
+          stroke-width="5" />
+
+    <!-- ========================================================== -->
+    <!-- 4. TACTILE FROSTED LIQUID-GLASS DROPLET WIDGETS            -->
+    <!-- ========================================================== -->
+    <!-- Soft Blurred Sapphire Elevation Shadows -->
+    <circle cx="389" cy="406" r="68" fill="#090D26" fill-opacity="0.28" filter="url(#widgetShadowBlur)" />
+    <rect x="511" y="338" width="200" height="56" rx="28" ry="28" fill="#090D26" fill-opacity="0.24" filter="url(#widgetShadowBlur)" />
+    <rect x="511" y="418" width="150" height="56" rx="28" ry="28" fill="#090D26" fill-opacity="0.18" filter="url(#widgetShadowBlur)" />
+
+    <!-- Left Convex Liquid-Glass Droplet Orb -->
+    <circle cx="389" cy="396" r="68" fill="url(#dropletOrbGrad)" stroke="url(#dropletSpecularRim)" stroke-width="2.5" />
+
+    <!-- Top Frosted Liquid-Glass Capsule -->
+    <rect x="511" y="328" width="200" height="56" rx="28" ry="28" fill="url(#dropletPillTop)" stroke="url(#dropletSpecularRim)" stroke-width="2.2" />
+
+    <!-- Bottom Translucent Liquid-Glass Capsule -->
+    <rect x="511" y="408" width="150" height="56" rx="28" ry="28" fill="url(#dropletPillBottom)" stroke="url(#dropletSpecularRim)" stroke-width="1.8" />
+  </g>
+
+  <!-- Subtle Squircle Rim Highlight -->
+  <rect x="98" y="98" width="828" height="828" rx="188" ry="188"
+        fill="none"
+        stroke="url(#squircleRim)"
+        stroke-width="5" />
+</svg>
