@@ -158,7 +158,7 @@ PeekPane/
 ├── scripts/package_release.sh    # Packages .zip, .dmg, SHA256SUMS & updates Homebrew Cask
 ├── Casks/peekpane.rb             # Homebrew Cask specification
 ├── ARCHITECTURE.md               # Deep-dive technical architecture & rendering design
-├── assets/                       # Real screen-recorded walkthrough GIFs & stills
+├── assets/                       # Real screen-recorded walkthrough GIFs
 └── Sources/PeekPane/
     ├── PeekPaneApp.swift         # @main App entry point, Main Window & MenuBarExtra
     ├── Models/
