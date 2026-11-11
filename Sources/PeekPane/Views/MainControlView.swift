@@ -4,12 +4,16 @@ import SwiftUI
 @MainActor
 final class AppCoordinator: ObservableObject {
     let discovery = WindowDiscoveryService()
+    let extensionManager = ExtensionBundleManager()
+    let bridgeServer = BrowserBridgeServer()
 
     @Published var activeSessions: [FloatingPlayerSession] = []
     @Published var selectedWindow: ShareableWindowItem?
     @Published var selectedPreviewImage: NSImage?
     @Published var draftCropRect: NormalizedCropRect?
     @Published var searchQuery: String = ""
+    @Published var setupSheetBrowser: SupportedChromiumBrowser?
+    var handoffBannerPanel: BrowserHandoffBannerPanel?
 
     private var previewTask: Task<Void, Never>?
     nonisolated(unsafe) private var terminationObserver: (any NSObjectProtocol)?
@@ -151,58 +155,89 @@ final class AppCoordinator: ObservableObject {
     }
 
     func presentWindowPickerMenu(for session: FloatingPlayerSession) async {
-        guard discovery.checkAndRequestPermission() else {
+        let hasConfiguredBrowsers = extensionManager.installedBrowsers.contains {
+            bridgeServer.hasEverConnected(bundleIdentifier: $0.bundleIdentifier)
+        }
+        let hasScreenPermission =
+            hasConfiguredBrowsers ? discovery.checkPermissionStatus() : discovery.checkAndRequestPermission()
+        guard hasScreenPermission || hasConfiguredBrowsers else {
             return
         }
         session.isShowingWindowPicker = true
         defer { session.isShowingWindowPicker = false }
 
-        await discovery.refreshWindows(loadThumbnails: false)
+        if hasScreenPermission {
+            await discovery.refreshWindows(loadThumbnails: false)
+        }
         guard let panel = session.panel, let contentView = panel.contentView else {
             return
         }
 
         let menu = NSMenu(title: "Choose Window")
         menu.autoenablesItems = false
-
-        let header = NSMenuItem.sectionHeader(title: "Switch to Open Window")
-        menu.addItem(header)
-
-        if discovery.windows.isEmpty {
-            let emptyItem = NSMenuItem(title: "No Open Windows Found", action: nil, keyEquivalent: "")
-            emptyItem.isEnabled = false
-            menu.addItem(emptyItem)
-        } else {
-            for item in discovery.windows {
-                let suffix = item.isOnScreen ? "" : " (Minimized / Off-Screen)"
-                let menuItem = NSMenuItem(
-                    title: item.displayTitle + suffix,
-                    action: #selector(MenuActionTarget.invoke(_:)),
-                    keyEquivalent: ""
-                )
-                let target = MenuActionTarget { [weak self, weak session] in
-                    guard let session else { return }
-                    let nextCrop: NormalizedCropRect =
-                        (item.windowID == session.windowItem.windowID) ? session.cropRect : .full
-                    session.switchTargetWindow(item, newCrop: nextCrop)
-                    self?.selectedWindow = item
-                }
-                menuItem.target = target
-                menuItem.representedObject = target
-                menuItem.state = (item.windowID == session.windowItem.windowID) ? .on : .off
-
-                if let appIcon = item.appIcon?.copy() as? NSImage {
-                    appIcon.size = NSSize(width: 18, height: 18)
-                    menuItem.image = appIcon
-                }
-                menu.addItem(menuItem)
-            }
-        }
+        populateBrowserTabItems(into: menu)
+        populateOpenWindowItems(into: menu, for: session, hasScreenPermission: hasScreenPermission)
 
         let anchorY = contentView.isFlipped ? 40.0 : max(8.0, contentView.bounds.height - 40.0)
         let anchorPoint = NSPoint(x: 14.0, y: anchorY)
         menu.popUp(positioning: nil, at: anchorPoint, in: contentView)
         menu.removeAllItems()
+    }
+
+    private func populateOpenWindowItems(
+        into menu: NSMenu,
+        for session: FloatingPlayerSession,
+        hasScreenPermission: Bool
+    ) {
+        menu.addItem(NSMenuItem.sectionHeader(title: "Switch to Open Window"))
+        guard hasScreenPermission else {
+            let grantItem = NSMenuItem(
+                title: "Allow Screen Recording for App Windows…",
+                action: #selector(MenuActionTarget.invoke(_:)),
+                keyEquivalent: ""
+            )
+            let target = MenuActionTarget { [weak self] in
+                Task { @MainActor in
+                    await self?.requestPermissionAndLoad()
+                }
+            }
+            grantItem.target = target
+            grantItem.representedObject = target
+            menu.addItem(grantItem)
+            return
+        }
+
+        if discovery.windows.isEmpty {
+            let emptyItem = NSMenuItem(title: "No Open Windows Found", action: nil, keyEquivalent: "")
+            emptyItem.isEnabled = false
+            menu.addItem(emptyItem)
+            return
+        }
+
+        for item in discovery.windows {
+            let suffix = item.isOnScreen ? "" : " (Minimized / Off-Screen)"
+            let menuItem = NSMenuItem(
+                title: item.displayTitle + suffix,
+                action: #selector(MenuActionTarget.invoke(_:)),
+                keyEquivalent: ""
+            )
+            let target = MenuActionTarget { [weak self, weak session] in
+                guard let session else { return }
+                let nextCrop: NormalizedCropRect =
+                    (item.windowID == session.source.windowItem?.windowID) ? session.cropRect : .full
+                session.switchTargetWindow(item, newCrop: nextCrop)
+                self?.selectedWindow = item
+            }
+            menuItem.target = target
+            menuItem.representedObject = target
+            menuItem.state = (item.windowID == session.source.windowItem?.windowID) ? .on : .off
+
+            if let appIcon = item.appIcon?.copy() as? NSImage {
+                appIcon.size = NSSize(width: 18, height: 18)
+                menuItem.image = appIcon
+            }
+            menu.addItem(menuItem)
+        }
     }
 
     func createFloatingPlayerFromDraft() {
@@ -252,7 +287,11 @@ struct MainControlView: View {
             }
         }
         .task {
+            coordinator.extensionManager.refreshInstalledBrowsers()
             await coordinator.initialLoad()
+        }
+        .sheet(item: $coordinator.setupSheetBrowser) { browser in
+            ExtensionSetupSheetView(browser: browser, coordinator: coordinator)
         }
     }
 
@@ -302,6 +341,8 @@ struct MainControlView: View {
                         }
                     }
                 }
+
+                BrowserTabsSection(coordinator: coordinator)
 
                 Section("Open Windows (\(filteredWindows.count))") {
                     ForEach(filteredWindows) { item in
@@ -442,6 +483,15 @@ struct MainControlView: View {
                 .background(.bar)
 
                 Divider()
+
+                if let chromiumBrowser = coordinator.selectedChromiumBrowser {
+                    ChromiumWindowBanner(
+                        browser: chromiumBrowser,
+                        windowItem: windowItem,
+                        coordinator: coordinator
+                    )
+                    Divider()
+                }
 
                 // Interactive Crop Canvas
                 InteractiveCropCanvas(
@@ -604,13 +654,13 @@ private struct ActiveSessionRowView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            if let icon = session.windowItem.appIcon {
+            if let icon = session.source.appIcon {
                 Image(nsImage: icon)
                     .resizable()
                     .frame(width: 18, height: 18)
             }
             VStack(alignment: .leading, spacing: 1) {
-                Text(session.windowItem.shortTitle)
+                Text(session.source.shortTitle)
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
                 HStack(spacing: 4) {
@@ -620,7 +670,7 @@ private struct ActiveSessionRowView: View {
                                 ? Color.red : (session.isSourceMinimized ? Color.orange : Color.green)
                         )
                         .frame(width: 6, height: 6)
-                    Text(session.isSourceClosed ? "Closed" : (session.isClickThrough ? "Click-Through" : "Live PiP"))
+                    Text(statusSubtitle)
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                 }
@@ -649,10 +699,20 @@ private struct ActiveSessionRowView: View {
         }
         .padding(.vertical, 2)
     }
+
+    private var statusSubtitle: String {
+        if session.isSourceClosed {
+            return "Closed"
+        }
+        if session.isClickThrough {
+            return "Click-Through"
+        }
+        return session.source.browserTabItem != nil ? "Tab PiP" : "Live PiP"
+    }
 }
 
 @MainActor
-private final class MenuActionTarget: NSObject {
+final class MenuActionTarget: NSObject {
     private let handler: @MainActor () -> Void
 
     init(handler: @escaping @MainActor () -> Void) {

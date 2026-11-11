@@ -1,4 +1,5 @@
 import AppKit
+import CoreVideo
 import QuartzCore
 
 // MARK: - GPU Video Surface & Root Container NSView (Zero NSHostingView / Zero Auto Layout)
@@ -12,6 +13,8 @@ final class VideoSurfaceNSView: NSView {
     private let closedBanner = ClosedSourceBannerView(frame: .zero)
 
     private var currentCropRect: NormalizedCropRect = .full
+    private var currentPixelBuffer: CVPixelBuffer?
+    private var currentActiveContentRect = CaptureFramePayload.fullActiveRect
 
     var onPanCrop: ((CGFloat, CGFloat) -> Void)?
     var onZoomCrop: ((CGFloat) -> Void)?
@@ -139,7 +142,7 @@ final class VideoSurfaceNSView: NSView {
 
     func configureHUDActions(session: FloatingPlayerSession) {
         topHUDBar.opacitySlider.doubleValue = session.opacity
-        updateGoButtonTargetAppName(session.windowItem.appName)
+        updateGoButtonTargetAppName(session.source.sourceAppName)
         topHUDBar.refreshButton.actionHandler = { [weak session] in
             guard let session else { return }
             session.onRequestRechooseWindow?(session)
@@ -183,6 +186,7 @@ final class VideoSurfaceNSView: NSView {
         CATransaction.setDisableActions(true)
         videoLayer.contents = nil
         CATransaction.commit()
+        currentPixelBuffer = nil
 
         onPanCrop = nil
         onZoomCrop = nil
@@ -333,14 +337,17 @@ final class VideoSurfaceNSView: NSView {
     }
 
     private func applyCropLayout() {
-        let c = currentCropRect.clamped()
+        let effective = Self.effectiveNormalizedCrop(
+            crop: currentCropRect.clamped(),
+            activeContent: currentActiveContentRect
+        )
         let viewW = max(1, bounds.width)
         let viewH = max(1, bounds.height)
-        let fullW = viewW / c.width
-        let fullH = viewH / c.height
+        let fullW = viewW / effective.width
+        let fullH = viewH / effective.height
         let targetFrame = CGRect(
-            x: -c.x * fullW,
-            y: -c.y * fullH,
+            x: -effective.minX * fullW,
+            y: -effective.minY * fullH,
             width: fullW,
             height: fullH
         )
@@ -351,6 +358,8 @@ final class VideoSurfaceNSView: NSView {
 
     func updateInitialImage(_ cgImage: CGImage, crop: NormalizedCropRect) {
         currentCropRect = crop
+        currentPixelBuffer = nil
+        currentActiveContentRect = CaptureFramePayload.fullActiveRect
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         videoLayer.contents = cgImage
@@ -358,8 +367,10 @@ final class VideoSurfaceNSView: NSView {
         CATransaction.commit()
     }
 
-    func updateFrame(_ payload: WindowStreamEngine.FramePayload, crop: NormalizedCropRect) {
+    func updateFrame(_ payload: CaptureFramePayload, crop: NormalizedCropRect) {
         currentCropRect = crop
+        currentPixelBuffer = payload.pixelBuffer
+        currentActiveContentRect = payload.activeContentNormalizedRect
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         videoLayer.contents = payload.surface
@@ -379,6 +390,19 @@ final class VideoSurfaceNSView: NSView {
 // MARK: - VideoSurfaceNSView + Resize Hit Testing & Events
 
 extension VideoSurfaceNSView {
+    static func effectiveNormalizedCrop(crop: NormalizedCropRect, activeContent: CGRect) -> CGRect {
+        let activeW = max(0.001, min(1.0, activeContent.width))
+        let activeH = max(0.001, min(1.0, activeContent.height))
+        let activeX = max(0.0, min(1.0 - activeW, activeContent.minX))
+        let activeY = max(0.0, min(1.0 - activeH, activeContent.minY))
+        return CGRect(
+            x: activeX + crop.x * activeW,
+            y: activeY + crop.y * activeH,
+            width: max(0.001, crop.width * activeW),
+            height: max(0.001, crop.height * activeH)
+        )
+    }
+
     // MARK: - Resize Hit Testing & Cursors
 
     fileprivate func resizeEdge(at pt: NSPoint) -> FloatingResizeEdge? {

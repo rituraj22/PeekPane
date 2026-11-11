@@ -1,18 +1,29 @@
 import AppKit
 import SwiftUI
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    @MainActor var openMainWindowHandler: (() -> Void)?
+    let coordinator = AppCoordinator()
+    private var mainWindow: NSWindow?
     nonisolated(unsafe) private var windowWillCloseObserver: (any NSObjectProtocol)?
     nonisolated(unsafe) private var windowDidBecomeKeyObserver: (any NSObjectProtocol)?
     nonisolated(unsafe) private var windowDidDeminiaturizeObserver: (any NSObjectProtocol)?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        MainActor.assumeIsolated {
-            installWindowLifecycleObservers()
+        installWindowLifecycleObservers()
+        coordinator.startBrowserBridgeServices()
+
+        let launchInBackground = CommandLine.arguments.contains("--background")
+        if launchInBackground {
+            _ = NSApp.setActivationPolicy(.accessory)
+        } else {
             _ = NSApp.setActivationPolicy(.regular)
-            NSApp.activate(ignoringOtherApps: true)
+            showMainWindow()
         }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        coordinator.stopBrowserBridgeServices()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -20,18 +31,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        MainActor.assumeIsolated {
-            let hasVisibleMain = NSApp.windows.contains {
-                Self.isStandardAppWindow($0) && $0.isVisible && !$0.isMiniaturized
+        let hasVisibleMain = NSApp.windows.contains {
+            Self.isStandardAppWindow($0) && $0.isVisible && !$0.isMiniaturized
+        }
+        if !hasVisibleMain {
+            showMainWindow()
+        } else {
+            if NSApp.activationPolicy() != .regular {
+                _ = NSApp.setActivationPolicy(.regular)
             }
-            if !hasVisibleMain {
-                showMainWindow()
-            } else {
-                if NSApp.activationPolicy() != .regular {
-                    _ = NSApp.setActivationPolicy(.regular)
-                }
-                NSApp.activate(ignoringOtherApps: true)
-            }
+            NSApp.activate(ignoringOtherApps: true)
         }
         return true
     }
@@ -48,13 +57,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @MainActor
     static func isStandardAppWindow(_ window: NSWindow) -> Bool {
         !(window is NSPanel) && window.styleMask.contains(.titled)
     }
 
-    @MainActor
     private func installWindowLifecycleObservers() {
+        observeWindowWillClose()
+        observeWindowDidBecomeKey()
+        observeWindowDidDeminiaturize()
+    }
+
+    private func observeWindowWillClose() {
         windowWillCloseObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: nil,
@@ -76,7 +89,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
 
+    private func observeWindowDidBecomeKey() {
         windowDidBecomeKeyObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didBecomeKeyNotification,
             object: nil,
@@ -95,7 +110,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
 
+    private func observeWindowDidDeminiaturize() {
         windowDidDeminiaturizeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didDeminiaturizeNotification,
             object: nil,
@@ -116,7 +133,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @MainActor
     private static func syncActivationPolicyAfterWindowClose() {
         guard !NSApp.isHidden else { return }
         let hasOpenMainWindow = NSApp.windows.contains {
@@ -127,7 +143,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @MainActor
     private static func switchToAccessoryKeepingFloatingPanesVisible() {
         let visiblePanels = NSApp.windows.compactMap { $0 as? FloatingPlayerPanel }.filter(\.isVisible)
         if NSApp.activationPolicy() != .accessory {
@@ -141,29 +156,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @MainActor
-    func showMainWindow(using openWindow: OpenWindowAction? = nil) {
+    func showMainWindow() {
         if NSApp.activationPolicy() != .regular {
             _ = NSApp.setActivationPolicy(.regular)
         }
-        if let openWindow {
-            openWindow(id: "main")
-        } else {
-            openMainWindowHandler?()
+        let window = ensureMainWindow()
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
         }
-        bringStandardWindowsToFront()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
 
         DispatchQueue.main.async { [weak self] in
             MainActor.assumeIsolated {
+                guard let self else { return }
                 if NSApp.activationPolicy() != .regular {
                     _ = NSApp.setActivationPolicy(.regular)
                 }
-                self?.bringStandardWindowsToFront()
+                self.bringStandardWindowsToFront()
             }
         }
     }
 
-    @MainActor
+    private func ensureMainWindow() -> NSWindow {
+        if let mainWindow {
+            return mainWindow
+        }
+        let rootView = MainControlView(coordinator: coordinator)
+            .frame(minWidth: 820, minHeight: 540)
+        let hostingController = NSHostingController(rootView: rootView)
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "PeekPane — Window Region Floating Pane"
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.setContentSize(NSSize(width: 960, height: 640))
+        window.minSize = NSSize(width: 820, height: 540)
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.setFrameAutosaveName("PeekPaneMainWindow")
+        self.mainWindow = window
+        return window
+    }
+
     private func bringStandardWindowsToFront() {
         for window in NSApp.windows where Self.isStandardAppWindow(window) {
             if window.isMiniaturized {
@@ -178,60 +211,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct PeekPaneApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var coordinator = AppCoordinator()
-    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        Window("PeekPane — Window Region Floating Pane", id: "main") {
-            MainControlView(coordinator: coordinator)
-                .frame(minWidth: 820, minHeight: 540)
-                .onAppear {
-                    let openAction = openWindow
-                    appDelegate.openMainWindowHandler = {
-                        openAction(id: "main")
-                    }
-                    if NSApp.activationPolicy() != .regular {
-                        _ = NSApp.setActivationPolicy(.regular)
-                    }
-                }
-        }
-        .defaultSize(width: 960, height: 640)
-
         MenuBarExtra {
-            Button {
-                for s in coordinator.activeSessions {
-                    s.isClickThrough = false
-                }
-            } label: {
-                Label {
-                    Text("Disable Ghost Mode")
-                } icon: {
-                    Image(nsImage: GhostIconRenderer.templateImage(size: 14))
-                }
-            }
-
-            if !coordinator.activeSessions.isEmpty {
-                Button(role: .destructive) {
-                    coordinator.closeAllSessions()
-                } label: {
-                    Label("Close All Floating Panes", systemImage: "xmark")
-                }
-            }
-
-            Divider()
-
-            Button("Open PeekPane Window") {
-                appDelegate.showMainWindow(using: openWindow)
-            }
-
-            Button("Quit PeekPane") {
-                coordinator.closeAllSessions()
-                NSApp.terminate(nil)
-            }
-            .keyboardShortcut("q")
+            MenuBarExtraContentView(appDelegate: appDelegate, coordinator: appDelegate.coordinator)
         } label: {
             Image(nsImage: MenuBarIconRenderer.templateImage())
         }
+    }
+}
+
+private struct MenuBarExtraContentView: View {
+    let appDelegate: AppDelegate
+    @ObservedObject var coordinator: AppCoordinator
+
+    var body: some View {
+        Button {
+            for s in coordinator.activeSessions {
+                s.isClickThrough = false
+            }
+        } label: {
+            Label {
+                Text("Disable Ghost Mode")
+            } icon: {
+                Image(nsImage: GhostIconRenderer.templateImage(size: 14))
+            }
+        }
+
+        if !coordinator.activeSessions.isEmpty {
+            Button(role: .destructive) {
+                coordinator.closeAllSessions()
+            } label: {
+                Label("Close All Floating Panes", systemImage: "xmark")
+            }
+        }
+
+        Divider()
+
+        Button("Open PeekPane Window") {
+            appDelegate.showMainWindow()
+        }
+
+        Button("Quit PeekPane") {
+            coordinator.closeAllSessions()
+            NSApp.terminate(nil)
+        }
+        .keyboardShortcut("q")
     }
 }
 

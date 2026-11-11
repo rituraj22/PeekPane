@@ -19,6 +19,9 @@ CHECKSUMS_PATH="${DIST_DIR}/SHA256SUMS.txt"
 echo "==> Running strict linter..."
 ./lint.sh
 
+echo "==> Running unit tests..."
+swift test
+
 echo "==> Building Universal Release ${APP_BUNDLE} (v${VERSION})..."
 ./build_app.sh --universal --skip-tcc-reset --version="${VERSION}"
 

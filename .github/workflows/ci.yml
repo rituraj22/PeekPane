@@ -23,8 +23,11 @@ jobs:
       - name: Install SwiftLint
         run: command -v swiftlint >/dev/null 2>&1 || HOMEBREW_NO_AUTO_UPDATE=1 brew install swiftlint
 
-      - name: Run Swift linter
-        run: ./lint.sh
+      - name: Run Swift linter + analyzer
+        run: ./lint.sh --analyze
+
+      - name: Run Unit Tests
+        run: swift test
 
       - name: Build Debug
         run: swift build

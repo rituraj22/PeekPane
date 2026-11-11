@@ -6,14 +6,9 @@ import IOSurface
 @preconcurrency import ScreenCaptureKit
 import os
 
-final class WindowStreamEngine: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
-    struct FramePayload: @unchecked Sendable {
-        let surface: IOSurfaceRef
-        let contentPointSize: CGSize
-    }
-
+final class WindowStreamEngine: NSObject, SCStreamOutput, SCStreamDelegate, CaptureStreamEngine, @unchecked Sendable {
     private struct PendingFrameState: @unchecked Sendable {
-        var latestPayload: FramePayload?
+        var latestPayload: CaptureFramePayload?
         var isDeliveryScheduled: Bool = false
     }
 
@@ -27,9 +22,9 @@ final class WindowStreamEngine: NSObject, SCStreamOutput, SCStreamDelegate, @unc
     private var lifecycleGeneration: UInt64 = 0
     private var isStopped: Bool = false
 
-    var onFrame: (@MainActor (FramePayload) -> Void)?
-    var onInitialImage: (@MainActor (CGImage, CGSize) -> Void)?
-    var onStateChange:
+    @MainActor var onFrame: (@MainActor (CaptureFramePayload) -> Void)?
+    @MainActor var onInitialImage: (@MainActor (CGImage, CGSize) -> Void)?
+    @MainActor var onStateChange:
         (@MainActor (_ isStreaming: Bool, _ isMinimized: Bool, _ isClosed: Bool, _ errorText: String?) -> Void)?
 
     init(scWindow: SCWindow) {
@@ -212,7 +207,7 @@ final class WindowStreamEngine: NSObject, SCStreamOutput, SCStreamDelegate, @unc
 
     @MainActor
     private func drainPendingFrame() {
-        let payload = frameLock.withLock { state -> FramePayload? in
+        let payload = frameLock.withLock { state -> CaptureFramePayload? in
             let p = state.latestPayload
             state.latestPayload = nil
             state.isDeliveryScheduled = false
@@ -269,7 +264,8 @@ final class WindowStreamEngine: NSObject, SCStreamOutput, SCStreamDelegate, @unc
             pointSize = contentRect.size
         }
 
-        let payload = FramePayload(
+        let payload = CaptureFramePayload(
+            pixelBuffer: pixelBuffer,
             surface: surface,
             contentPointSize: pointSize
         )

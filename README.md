@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/rituraj22/PeekPane/releases/latest"><img src="https://img.shields.io/badge/Download-v1.2.1_Release-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Download Latest Release" /></a>
+  <a href="https://github.com/rituraj22/PeekPane/releases/latest"><img src="https://img.shields.io/badge/Download-v1.3_Release-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Download Latest Release" /></a>
   <img src="https://img.shields.io/badge/macOS-14.0%2B_(Sonoma_%2F_Sequoia)-1E293B?style=for-the-badge&logo=apple&logoColor=white" alt="macOS 14.0+" />
   <img src="https://img.shields.io/badge/Arch-Universal_(Apple_Silicon_%26_Intel)-334155?style=for-the-badge" alt="Universal Binary" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge" alt="MIT License" /></a>
@@ -81,6 +81,14 @@ When the flight lands—or whenever you want to interact with the full source wi
 
 ---
 
+### 5. 🌐 Direct Browser Tab Extraction (Chrome, Arc, Brave, Edge & Vivaldi)
+Floating a browser window works anytime—and with the bundled **PeekPane Tab Extractor** extension, you can float an **individual browser tab directly** without toolbars:
+* **Switch Tabs Freely**: Keep a background tab streaming live at ~24 FPS even when you switch to another tab in the same browser window, minimize the browser, or move across Spaces.
+* **Toolbar Click or `⌥⇧P` Direct Crop**: Click the PeekPane extension icon (or press **`⌥⇧P`**), hover to auto-snap to any card/chart/video or drag a custom box (or click **Float Full Tab**), and PeekPane floats it immediately—launching silently in the background without a Dock icon or main window if PeekPane wasn't open yet.
+* **One-Click Setup & Handoff from PeekPane**: Use the **Browser Tabs** section in the PeekPane sidebar (or the prompt shown when selecting any Chromium window) to install the bundled unpacked extension from `~/Library/Application Support/PeekPane/Extension` or jump straight to your browser to pick a tab.
+
+---
+
 ## 🎯 Everyday Use Cases
 
 | Use Case | What You Can Float |
@@ -118,7 +126,7 @@ Hover over any floating pane to reveal its HUD controls:
 
 ### Requirements
 * **macOS 14.0 (Sonoma)** or later (Universal Binary for Apple Silicon & Intel)
-* **Screen Recording Permission** *(prompted on first launch so PeekPane can stream window regions via `ScreenCaptureKit`)*
+* **Screen Recording Permission** *(prompted when streaming Mac app windows via `ScreenCaptureKit`; not required for Browser Tab Extraction)*
 * **Accessibility Permission** *(optional, prompted only when using `↗ Go` to raise a specific window among multiple windows of the same app)*
 
 ### Option 1: Install via Homebrew (Recommended)
@@ -128,7 +136,7 @@ brew install --cask peekpane
 ```
 
 ### Option 2: Download Prebuilt `.dmg` or `.zip`
-Download [**`PeekPane-1.2.1-macos.dmg`**](https://github.com/rituraj22/PeekPane/releases/latest) or [**`PeekPane-1.2.1-macos.zip`**](https://github.com/rituraj22/PeekPane/releases/latest) from the [Releases](https://github.com/rituraj22/PeekPane/releases) page, drag **PeekPane.app** to `/Applications`, and launch it.
+Download [**`PeekPane-1.3-macos.dmg`**](https://github.com/rituraj22/PeekPane/releases/latest) or [**`PeekPane-1.3-macos.zip`**](https://github.com/rituraj22/PeekPane/releases/latest) from the [Releases](https://github.com/rituraj22/PeekPane/releases) page, drag **PeekPane.app** to `/Applications`, and launch it.
 
 ### Option 3: Build from Source
 ```bash
@@ -147,36 +155,56 @@ make release
 
 ## ⚡ Architecture & Performance
 
-**PeekPane** is built in pure Swift (`strict` concurrency) using **AppKit**, **CoreAnimation**, and **ScreenCaptureKit**:
-* **Zero-Copy 60 FPS GPU Pipeline**: Frames arrive from `SCStream` as `CMSampleBuffer` backed by GPU `IOSurface` objects and are assigned directly to `videoLayer.contents` inside a pure AppKit `NSPanel` (`VideoSurfaceNSView`)—zero `NSImage`/`CGImage` per-frame allocations and zero CPU pixel copies.
-* **Normalized Crop & In-Place Edge Expansion**: Cropping is represented in normalized top-left window coordinates (`NormalizedCropRect`), allowing instant switching between proportional window scaling and in-place crop expansion.
+**PeekPane** is built in pure Swift (`strict` concurrency) using **AppKit**, **CoreAnimation**, **ScreenCaptureKit**, **VideoToolbox**, and **Network.framework**:
+* **Zero-Copy 60 FPS GPU Window Pipeline**: Frames arrive from `SCStream` as `CMSampleBuffer` backed by GPU `IOSurface` objects and are assigned directly to `videoLayer.contents` inside a pure AppKit `NSPanel` (`VideoSurfaceNSView`)—zero `NSImage`/`CGImage` per-frame allocations and zero CPU pixel copies.
+* **Zero-Copy Browser Tab Pipeline**: The bundled MV3 Chromium extension captures a tab's compositor output in an offscreen document via `chrome.tabCapture` + hardware `WebCodecs` H.264 (`avcC`), streams compact binary packets over an authenticated loopback WebSocket (`127.0.0.1`), and decodes directly via `VTDecompressionSession` into `IOSurface`-backed `CVPixelBuffer` surfaces shared across panes.
+* **Normalized Crop & In-Place Edge Expansion**: Cropping is represented in normalized top-left window/viewport coordinates (`NormalizedCropRect`), allowing instant switching between proportional window scaling and in-place crop expansion.
 
 ```text
 PeekPane/
 ├── Package.swift                 # SwiftPM manifest (.macOS(.v14), strict concurrency)
-├── Info.plist                    # App bundle metadata (com.peekpane.app, v1.2.1)
+├── Info.plist                    # App bundle metadata (com.peekpane.app, v1.3)
 ├── Entitlements.plist            # macOS Screen Capture & Apple Events entitlements
 ├── AppIcon.svg                   # Liquid Glass vector app icon source
-├── Makefile                      # Standardized build, lint, universal & release targets
-├── build_app.sh                  # Universal/native .app builder, icon generator & signer
+├── Makefile                      # Standardized build, lint, test, universal & release targets
+├── build_app.sh                  # Universal/native .app builder, icon generator & inside-out signer
 ├── scripts/package_release.sh    # Packages .zip, .dmg, SHA256SUMS & updates Homebrew Cask
 ├── Casks/peekpane.rb             # Homebrew Cask specification
 ├── ARCHITECTURE.md               # Deep-dive technical architecture & rendering design
+├── Extension/                    # Bundled MV3 Chromium extension (tabCapture + WebCodecs H.264)
 ├── assets/                       # Real screen-recorded walkthrough GIFs
-└── Sources/PeekPane/
-    ├── PeekPaneApp.swift         # @main App entry point, Main Window & MenuBarExtra
-    ├── Models/
-    │   └── CaptureSessionModel.swift    # NormalizedCropRect math & ShareableWindowItem model
-    ├── Services/
-    │   ├── WindowDiscoveryService.swift # SCShareableContent + CGWindowList Z-order discovery
-    │   ├── WindowFocusHelper.swift      # AXUIElement + CGWindowList target window focus helper
-    │   └── WindowStreamEngine.swift     # 60 FPS SCStream zero-copy IOSurface capture engine
-    └── Views/
-        ├── MainControlView.swift        # AppCoordinator & main window split-view UI
-        ├── InteractiveCropCanvas.swift  # Interactive crop canvas with dynamic cursors
-        ├── FloatingPlayerPanel.swift    # FloatingPlayerSession & pure AppKit NSPanel
-        ├── VideoSurfaceNSView.swift     # CALayer GPU surface, hit-testing & resize cursors
-        └── FloatingPlayerHUDViews.swift # Pure AppKit HUD controls, slider & banners
+├── Sources/
+│   ├── PeekPaneBridgeWire/       # Shared binary wire header, avcC parser & Native Messaging framing
+│   ├── PeekPaneNativeHost/       # Native Messaging CLI bridge (probe & silent --background bootstrap)
+│   └── PeekPane/
+│       ├── PeekPaneApp.swift     # @main App entry point, managed Main Window & --background mode
+│       ├── Models/
+│       │   └── CaptureSessionModel.swift        # NormalizedCropRect, CaptureSource & browser models
+│       ├── Services/
+│       │   ├── CaptureStreamEngine.swift        # Unified zero-copy stream protocol & CVPixelBuffer payload
+│       │   ├── WindowDiscoveryService.swift     # SCShareableContent + CGWindowList Z-order discovery
+│       │   ├── WindowFocusHelper.swift          # AXUIElement + CGWindowList target window focus helper
+│       │   ├── WindowStreamEngine.swift         # 60 FPS SCStream zero-copy IOSurface capture engine
+│       │   ├── ExtensionBundleManager.swift     # Atomic extension staging & NativeMessagingHosts setup
+│       │   ├── BrowserBridgeServer.swift        # Authenticated 127.0.0.1 WebSocket control/stream server
+│       │   ├── BrowserBridgeServer+Routing.swift# Control/binary packet routing & heartbeat monitor
+│       │   ├── BrowserBridgeMessages.swift      # Typed control envelopes & session handoff models
+│       │   ├── H264StreamDecoder.swift          # Hardware VTDecompressionSession -> IOSurface decoder
+│       │   └── TabStreamEngine.swift            # Shared per-tab stream fan-out & active-rect unletterbox
+│       └── Views/
+│           ├── MainControlView.swift            # AppCoordinator & main window split-view UI
+│           ├── AppCoordinator+BrowserTabs.swift # Flow 1/Flow 2 browser tab session & handoff actions
+│           ├── BrowserTabsSection.swift         # Sidebar Browser Tabs launcher & connection status
+│           ├── ChromiumWindowBanner.swift       # Contextual Chromium window QoL suggestion banner
+│           ├── ExtensionSetupSheetView.swift    # Guided unpacked extension setup & staging helper
+│           ├── BrowserHandoffBannerPanel.swift  # Non-activating Flow 2 browser guidance HUD panel
+│           ├── InteractiveCropCanvas.swift      # Interactive crop canvas with dynamic cursors
+│           ├── FloatingPlayerPanel.swift        # FloatingPlayerSession & pure AppKit NSPanel
+│           ├── FloatingPlayerSession+Source.swift # Source switching & window/browser activation
+│           ├── VideoSurfaceNSView.swift         # CALayer GPU surface, active-rect projection & cursors
+│           └── FloatingPlayerHUDViews.swift     # Pure AppKit HUD controls, slider & banners
+└── Tests/
+    └── PeekPaneBridgeWireTests/  # Unit tests for wire packets, avcC parsing & Native Messaging
 ```
 
 For a deep dive into the rendering pipeline and coordinate math, see **[ARCHITECTURE.md](./ARCHITECTURE.md)**.

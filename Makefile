@@ -2,18 +2,24 @@ SHELL := /bin/bash
 APP_NAME := PeekPane
 VERSION := $(shell tr -d '[:space:]' < VERSION 2>/dev/null || echo "1.0")
 
-.PHONY: all build lint format app universal release install clean
+.PHONY: all build test lint analyze format app universal release install clean
 
-all: lint app
+all: lint test app
 
 build:
 	swift build
 
+test:
+	swift test
+
 lint:
 	./lint.sh
 
+analyze:
+	./lint.sh --analyze
+
 format:
-	swift format format --configuration .swift-format --in-place --recursive Sources Package.swift
+	swift format format --configuration .swift-format --in-place --recursive Sources Tests Package.swift
 
 app:
 	./build_app.sh --version=$(VERSION)

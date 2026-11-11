@@ -1,5 +1,4 @@
 import AppKit
-import ApplicationServices
 import Combine
 
 // MARK: - Floating Player Session
@@ -10,7 +9,7 @@ final class FloatingPlayerSession: ObservableObject, Identifiable {
     nonisolated static let minPanelHeight: CGFloat = 98
 
     let id = UUID()
-    @Published var windowItem: ShareableWindowItem
+    @Published var source: CaptureSource
     var cropRect: NormalizedCropRect
     @Published var opacity: Double = 1.0 {
         didSet {
@@ -90,22 +89,23 @@ final class FloatingPlayerSession: ObservableObject, Identifiable {
     }
     @Published var streamError: String?
 
-    private var streamEngine: WindowStreamEngine
-    private weak var surfaceView: VideoSurfaceNSView?
+    var streamEngine: any CaptureStreamEngine
+    weak var surfaceView: VideoSurfaceNSView?
     private(set) var panel: FloatingPlayerPanel?
-    private var latestSourcePointSize: CGSize
+    var latestSourcePointSize: CGSize
     nonisolated(unsafe) private var globalFlagsMonitor: Any?
     nonisolated(unsafe) private var localFlagsMonitor: Any?
-    private var isClosed: Bool = false
+    var isClosed: Bool = false
 
     var onClose: ((UUID) -> Void)?
     var onRequestRechooseWindow: ((FloatingPlayerSession) -> Void)?
+    var onActivateBrowserTab: ((BrowserTabSourceItem) -> Void)?
 
-    init(windowItem: ShareableWindowItem, cropRect: NormalizedCropRect) {
-        self.windowItem = windowItem
+    init(source: CaptureSource, cropRect: NormalizedCropRect, streamEngine: any CaptureStreamEngine) {
+        self.source = source
         self.cropRect = cropRect.clamped()
-        self.latestSourcePointSize = windowItem.frame.size
-        self.streamEngine = WindowStreamEngine(scWindow: windowItem.scWindow)
+        self.latestSourcePointSize = source.initialPointSize
+        self.streamEngine = streamEngine
 
         setupStreamCallbacks()
     }
@@ -157,7 +157,7 @@ final class FloatingPlayerSession: ObservableObject, Identifiable {
         panel?.ignoresMouseEvents = isClickThrough && !isOptionKeyPressed
     }
 
-    private func setupStreamCallbacks() {
+    func setupStreamCallbacks() {
         streamEngine.onInitialImage = { [weak self] cgImage, pointSize in
             guard let self, !self.isClosed else { return }
             self.latestSourcePointSize = pointSize
@@ -217,96 +217,6 @@ final class FloatingPlayerSession: ObservableObject, Identifiable {
         Task { [weak self] in
             guard let self, !self.isClosed else { return }
             await self.streamEngine.start(showsCursor: self.showsCursor)
-        }
-    }
-
-    func switchTargetWindow(_ newWindowItem: ShareableWindowItem, newCrop: NormalizedCropRect) {
-        guard !isClosed else { return }
-        let oldEngine = self.streamEngine
-        oldEngine.onInitialImage = nil
-        oldEngine.onFrame = nil
-        oldEngine.onStateChange = nil
-
-        if isAdjustingCrop {
-            isAdjustingCrop = false
-        }
-        self.windowItem = newWindowItem
-        self.latestSourcePointSize = newWindowItem.frame.size
-        surfaceView?.updateGoButtonTargetAppName(newWindowItem.appName)
-        if self.isSourceClosed {
-            self.isSourceClosed = false
-        }
-        let newEngine = WindowStreamEngine(scWindow: newWindowItem.scWindow)
-        self.streamEngine = newEngine
-        setupStreamCallbacks()
-        updateCropRect(newCrop, resizeWindow: true)
-
-        Task { [weak self] in
-            await oldEngine.stop()
-            guard let self, !self.isClosed, self.streamEngine === newEngine else {
-                await newEngine.stop()
-                return
-            }
-            await newEngine.start(showsCursor: self.showsCursor)
-        }
-    }
-
-    func activateSourceApp() {
-        let pid = windowItem.processID
-        let targetWindowID = windowItem.windowID
-        let bundleID = windowItem.bundleIdentifier
-        let runningApp =
-            (pid != 0 ? NSRunningApplication(processIdentifier: pid) : nil)
-            ?? (bundleID.isEmpty
-                ? nil
-                : NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first)
-
-        let snapshot = WindowFocusHelper.inspectTargetWindow(
-            pid: pid,
-            windowID: targetWindowID,
-            fallbackTitle: windowItem.title,
-            fallbackFrame: windowItem.frame
-        )
-
-        if !AXIsProcessTrusted() && snapshot.totalAppWindows > 1 {
-            WindowFocusHelper.resetStaleAccessibilityTCCEntry()
-            let promptOptions = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-            _ = AXIsProcessTrustedWithOptions(promptOptions)
-        }
-
-        if let runningApp {
-            if runningApp.isHidden {
-                runningApp.unhide()
-            }
-
-            let raisedAX = WindowFocusHelper.raiseSpecificAXWindow(
-                pid: pid,
-                snapshot: snapshot
-            )
-
-            // rawValue 3 = [.activateAllWindows, .activateIgnoringOtherApps], bringing windows on all displays forward
-            // When AX already raised the exact window, rawValue 2 (.activateIgnoringOtherApps) focuses only that window
-            let activationBits: UInt = raisedAX ? 2 : 3
-            _ = runningApp.activate(options: NSApplication.ActivationOptions(rawValue: activationBits))
-
-            _ = WindowFocusHelper.raiseSpecificAXWindow(pid: pid, snapshot: snapshot)
-
-            if isSourceMinimized && !raisedAX, let bundleURL = runningApp.bundleURL {
-                let config = NSWorkspace.OpenConfiguration()
-                config.activates = true
-                NSWorkspace.shared.openApplication(at: bundleURL, configuration: config, completionHandler: nil)
-            }
-
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 50_000_000)
-                _ = WindowFocusHelper.raiseSpecificAXWindow(pid: pid, snapshot: snapshot)
-            }
-        } else if !bundleID.isEmpty,
-            let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
-        {
-            let config = NSWorkspace.OpenConfiguration()
-            config.activates = true
-            NSWorkspace.shared.openApplication(at: appURL, configuration: config, completionHandler: nil)
         }
     }
 
@@ -399,6 +309,7 @@ final class FloatingPlayerSession: ObservableObject, Identifiable {
         let closeHandler = onClose
         onClose = nil
         onRequestRechooseWindow = nil
+        onActivateBrowserTab = nil
         closeHandler?(id)
     }
 

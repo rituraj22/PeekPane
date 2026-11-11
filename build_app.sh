@@ -6,9 +6,12 @@ cd "${ROOT_DIR}"
 
 APP_NAME="PeekPane"
 BUNDLE_ID="com.peekpane.app"
+NATIVE_HOST_NAME="PeekPaneNativeHost"
+NATIVE_HOST_ID="com.peekpane.app.native-host"
 APP_BUNDLE="${APP_NAME}.app"
 CONTENTS_DIR="${APP_BUNDLE}/Contents"
 MACOS_DIR="${CONTENTS_DIR}/MacOS"
+HELPERS_DIR="${CONTENTS_DIR}/Helpers"
 RESOURCES_DIR="${CONTENTS_DIR}/Resources"
 
 VERSION="$(tr -d '[:space:]' < VERSION 2>/dev/null || echo "1.0")"
@@ -41,28 +44,37 @@ fi
 
 BUILD_FLAGS=(-c release)
 if [[ "${UNIVERSAL}" == "true" ]]; then
-    echo "==> Building ${APP_NAME} v${VERSION} (Universal: arm64 + x86_64)..."
+    echo "==> Building ${APP_NAME} & ${NATIVE_HOST_NAME} v${VERSION} (Universal: arm64 + x86_64)..."
     BUILD_FLAGS+=(--arch arm64 --arch x86_64)
 else
-    echo "==> Building ${APP_NAME} v${VERSION} (Native architecture)..."
+    echo "==> Building ${APP_NAME} & ${NATIVE_HOST_NAME} v${VERSION} (Native architecture)..."
 fi
 
 swift build "${BUILD_FLAGS[@]}"
-BIN_PATH="$(swift build "${BUILD_FLAGS[@]}" --show-bin-path)/${APP_NAME}"
+BIN_DIR="$(swift build "${BUILD_FLAGS[@]}" --show-bin-path)"
+BIN_PATH="${BIN_DIR}/${APP_NAME}"
+HELPER_BIN_PATH="${BIN_DIR}/${NATIVE_HOST_NAME}"
 
 echo "==> Packaging ${APP_BUNDLE}..."
 rm -rf "${APP_BUNDLE}"
-mkdir -p "${MACOS_DIR}" "${RESOURCES_DIR}"
+mkdir -p "${MACOS_DIR}" "${HELPERS_DIR}" "${RESOURCES_DIR}"
 
 cp "${BIN_PATH}" "${MACOS_DIR}/${APP_NAME}"
 chmod +x "${MACOS_DIR}/${APP_NAME}"
+
+cp "${HELPER_BIN_PATH}" "${HELPERS_DIR}/${NATIVE_HOST_NAME}"
+chmod +x "${HELPERS_DIR}/${NATIVE_HOST_NAME}"
+
+if [[ -d "Extension" ]]; then
+    cp -R "Extension" "${RESOURCES_DIR}/Extension"
+fi
 
 cp "Info.plist" "${CONTENTS_DIR}/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "${CONTENTS_DIR}/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" "${CONTENTS_DIR}/Info.plist"
 
 if [[ -f "AppIcon.svg" ]]; then
-    echo "==> Generating AppIcon.icns from AppIcon.svg..."
+    echo "==> Generating AppIcon.icns and browser extension icons from AppIcon.svg..."
     TEMP_ICON_ROOT="$(mktemp -d)"
     ICONSET_DIR="${TEMP_ICON_ROOT}/AppIcon.iconset"
     mkdir -p "${ICONSET_DIR}"
@@ -112,11 +124,29 @@ EOF
 
     iconutil -c icns "${ICONSET_DIR}" -o "${RESOURCES_DIR}/AppIcon.icns"
     cp "AppIcon.svg" "${RESOURCES_DIR}/AppIcon.svg"
+
+    if [[ -d "${RESOURCES_DIR}/Extension" ]]; then
+        mkdir -p "${RESOURCES_DIR}/Extension/icons"
+        sips -z 16 16   "${BASE_PNG}" --out "${TEMP_ICON_ROOT}/ext_16.png" >/dev/null
+        sips -z 48 48   "${BASE_PNG}" --out "${TEMP_ICON_ROOT}/ext_48.png" >/dev/null
+        sips -z 128 128 "${BASE_PNG}" --out "${TEMP_ICON_ROOT}/ext_128.png" >/dev/null
+        cp "${TEMP_ICON_ROOT}/ext_16.png"  "${RESOURCES_DIR}/Extension/icons/icon-16.png"
+        cp "${TEMP_ICON_ROOT}/ext_48.png"  "${RESOURCES_DIR}/Extension/icons/icon-48.png"
+        cp "${TEMP_ICON_ROOT}/ext_128.png" "${RESOURCES_DIR}/Extension/icons/icon-128.png"
+    fi
+
     rm -rf "${TEMP_ICON_ROOT}"
 fi
 
-echo "==> Signing ${APP_BUNDLE} (identity: ${CODESIGN_IDENTITY})..."
-CODESIGN_ARGS=(--force --deep --sign "${CODESIGN_IDENTITY}" --identifier "${BUNDLE_ID}")
+echo "==> Signing nested helper ${NATIVE_HOST_NAME} (identity: ${CODESIGN_IDENTITY})..."
+HELPER_CODESIGN_ARGS=(--force --sign "${CODESIGN_IDENTITY}" --identifier "${NATIVE_HOST_ID}")
+if [[ "${CODESIGN_IDENTITY}" != "-" ]]; then
+    HELPER_CODESIGN_ARGS+=(--options runtime --timestamp)
+fi
+codesign "${HELPER_CODESIGN_ARGS[@]}" "${HELPERS_DIR}/${NATIVE_HOST_NAME}"
+
+echo "==> Signing ${APP_BUNDLE} inside-out without --deep (identity: ${CODESIGN_IDENTITY})..."
+CODESIGN_ARGS=(--force --sign "${CODESIGN_IDENTITY}" --identifier "${BUNDLE_ID}")
 if [[ -f "Entitlements.plist" ]]; then
     CODESIGN_ARGS+=(--entitlements "Entitlements.plist")
 fi

@@ -2,9 +2,9 @@ import AppKit
 import Foundation
 @preconcurrency import ScreenCaptureKit
 
-/// Represents a normalized crop rectangle within a target window.
-/// Origin (0, 0) is the TOP-LEFT of the window; values are in 0.0...1.0.
-struct NormalizedCropRect: Equatable, Sendable {
+/// Represents a normalized crop rectangle within a target window or tab viewport.
+/// Origin (0, 0) is the TOP-LEFT; values are in 0.0...1.0.
+struct NormalizedCropRect: Codable, Equatable, Sendable {
     var x: CGFloat
     var y: CGFloat
     var width: CGFloat
@@ -21,7 +21,7 @@ struct NormalizedCropRect: Equatable, Sendable {
         return Self(x: clampedX, y: clampedY, width: w, height: h)
     }
 
-    /// Computes the size in points for a given window point size.
+    /// Computes the size in points for a given window or viewport point size.
     func pixelOrPointSize(for windowSize: CGSize) -> CGSize {
         let c = clamped()
         return CGSize(
@@ -51,6 +51,121 @@ struct NormalizedCropRect: Equatable, Sendable {
         let newX = max(0.0, min(1.0 - newW, centerX - newW * 0.5))
         let newY = max(0.0, min(1.0 - newH, centerY - newH * 0.5))
         return Self(x: newX, y: newY, width: newW, height: newH)
+    }
+}
+
+/// Supported Chromium-based macOS desktop browsers for direct tab extraction.
+enum SupportedChromiumBrowser: String, CaseIterable, Identifiable, Sendable {
+    case googleChrome = "com.google.Chrome"
+    case arc = "company.thebrowser.Browser"
+    case brave = "com.brave.Browser"
+    case edge = "com.microsoft.edgemac"
+    case vivaldi = "com.vivaldi.Vivaldi"
+    case chromium = "org.chromium.Chromium"
+
+    var id: String { rawValue }
+    var bundleIdentifier: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .googleChrome: "Google Chrome"
+        case .arc: "Arc"
+        case .brave: "Brave"
+        case .edge: "Microsoft Edge"
+        case .vivaldi: "Vivaldi"
+        case .chromium: "Chromium"
+        }
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .googleChrome: "Chrome"
+        case .arc: "Arc"
+        case .brave: "Brave"
+        case .edge: "Edge"
+        case .vivaldi: "Vivaldi"
+        case .chromium: "Chromium"
+        }
+    }
+
+    var extensionsURLString: String {
+        switch self {
+        case .googleChrome, .arc, .chromium: "chrome://extensions"
+        case .brave: "brave://extensions"
+        case .edge: "edge://extensions"
+        case .vivaldi: "vivaldi://extensions"
+        }
+    }
+
+    var appSupportRelativeParentPath: String {
+        switch self {
+        case .googleChrome: "Google/Chrome"
+        case .arc: "Arc/User Data"
+        case .brave: "BraveSoftware/Brave-Browser"
+        case .edge: "Microsoft Edge"
+        case .vivaldi: "Vivaldi"
+        case .chromium: "Chromium"
+        }
+    }
+
+    @MainActor
+    var installedAppURL: URL? {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
+    }
+
+    @MainActor
+    var appIcon: NSImage {
+        if let url = installedAppURL {
+            return NSWorkspace.shared.icon(forFile: url.path)
+        }
+        return NSWorkspace.shared.icon(for: .applicationBundle)
+    }
+}
+
+/// Uniquely identifies an active browser tab stream across multiple Chromium profiles.
+struct TabStreamKey: Hashable, Codable, Sendable {
+    let extensionInstanceID: String
+    let tabID: UInt32
+}
+
+/// Metadata for a live Chromium browser tab source.
+struct BrowserTabSourceItem: Identifiable, Hashable {
+    let streamKey: TabStreamKey
+    let browserBundleIdentifier: String
+    var title: String
+    var host: String
+    var viewportSize: CGSize
+    let appIcon: NSImage?
+
+    var id: TabStreamKey { streamKey }
+
+    var browserDisplayName: String {
+        SupportedChromiumBrowser(rawValue: browserBundleIdentifier)?.displayName ?? "Browser"
+    }
+
+    var shortTitle: String {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return trimmed
+        }
+        return host.isEmpty ? browserDisplayName : host
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.streamKey == rhs.streamKey
+            && lhs.browserBundleIdentifier == rhs.browserBundleIdentifier
+            && lhs.title == rhs.title
+            && lhs.host == rhs.host
+            && lhs.viewportSize == rhs.viewportSize
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(streamKey)
+        hasher.combine(browserBundleIdentifier)
+        hasher.combine(title)
+        hasher.combine(host)
+        hasher.combine(viewportSize.width)
+        hasher.combine(viewportSize.height)
     }
 }
 
@@ -118,5 +233,49 @@ struct ShareableWindowItem: Identifiable, Hashable {
         hasher.combine(frame.size.width)
         hasher.combine(frame.size.height)
         hasher.combine(isOnScreen)
+    }
+}
+
+/// Unified source descriptor backing a `FloatingPlayerSession`.
+enum CaptureSource: Equatable {
+    case window(ShareableWindowItem)
+    case browserTab(BrowserTabSourceItem)
+
+    var shortTitle: String {
+        switch self {
+        case .window(let item): item.shortTitle
+        case .browserTab(let tab): tab.shortTitle
+        }
+    }
+
+    var sourceAppName: String {
+        switch self {
+        case .window(let item): item.appName
+        case .browserTab(let tab): tab.browserDisplayName
+        }
+    }
+
+    var appIcon: NSImage? {
+        switch self {
+        case .window(let item): item.appIcon
+        case .browserTab(let tab): tab.appIcon
+        }
+    }
+
+    var initialPointSize: CGSize {
+        switch self {
+        case .window(let item): item.frame.size
+        case .browserTab(let tab): tab.viewportSize
+        }
+    }
+
+    var windowItem: ShareableWindowItem? {
+        guard case .window(let item) = self else { return nil }
+        return item
+    }
+
+    var browserTabItem: BrowserTabSourceItem? {
+        guard case .browserTab(let tab) = self else { return nil }
+        return tab
     }
 }
