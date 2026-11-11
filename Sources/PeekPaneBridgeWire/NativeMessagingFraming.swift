@@ -166,6 +166,24 @@ public enum BridgeSecurity {
 
     public static func isAllowedExtensionOrigin(_ origin: String?) -> Bool {
         guard let origin else { return false }
-        return origin == BridgeConstants.expectedExtensionOrigin
+        if origin == BridgeConstants.expectedExtensionOrigin {
+            return true
+        }
+        return isValidFirefoxExtensionOrigin(origin)
+    }
+
+    private static func isValidFirefoxExtensionOrigin(_ origin: String) -> Bool {
+        let prefix = BridgeConstants.firefoxOriginSchemePrefix
+        guard origin.hasPrefix(prefix) else { return false }
+        let uuidSlice = origin.dropFirst(prefix.count)
+        guard uuidSlice.count == 36 else { return false }
+        for (idx, ch) in uuidSlice.enumerated() {
+            if idx == 8 || idx == 13 || idx == 18 || idx == 23 {
+                if ch != "-" { return false }
+            } else if !ch.isHexDigit {
+                return false
+            }
+        }
+        return true
     }
 }

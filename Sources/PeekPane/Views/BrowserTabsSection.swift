@@ -17,8 +17,8 @@ struct BrowserTabsSection: View {
                 ForEach(extensionManager.installedBrowsers) { browser in
                     BrowserTabTriggerRow(
                         browser: browser,
-                        isLiveConnected: bridgeServer.isCurrentlyConnected(bundleIdentifier: browser.bundleIdentifier),
-                        isConfigured: bridgeServer.hasEverConnected(bundleIdentifier: browser.bundleIdentifier)
+                        isLiveConnected: bridgeServer.isCurrentlyConnected(for: browser),
+                        isConfigured: coordinator.isExtensionConfigured(for: browser)
                     ) {
                         coordinator.handleSidebarBrowserButtonTap(browser)
                     } onOpenSetup: {
@@ -31,7 +31,7 @@ struct BrowserTabsSection: View {
 }
 
 private struct BrowserTabTriggerRow: View {
-    let browser: SupportedChromiumBrowser
+    let browser: SupportedBrowser
     let isLiveConnected: Bool
     let isConfigured: Bool
     let onPrimaryAction: () -> Void
@@ -90,8 +90,11 @@ private struct BrowserTabTriggerRow: View {
 
     private var statusLabel: String {
         if isLiveConnected {
-            return "Extension connected"
+            return browser.engineFamily == .gecko ? "Connected (~12–15 FPS)" : "Extension connected"
         }
-        return isConfigured ? "Ready via shortcut / icon" : "One-time extension setup"
+        if isConfigured {
+            return browser.engineFamily == .gecko ? "Ready (~12–15 FPS)" : "Ready via shortcut / icon"
+        }
+        return browser.engineFamily == .gecko ? "Setup (~12–15 FPS)" : "One-time extension setup"
     }
 }

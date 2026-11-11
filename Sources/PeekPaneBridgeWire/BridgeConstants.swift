@@ -3,10 +3,11 @@ import Foundation
 
 public enum BridgeConstants {
     public static let appBundleIdentifier = "com.peekpane.app"
+    public static let devAppBundleIdentifier = "com.peekpane.app.dev"
     public static let nativeHostBundleIdentifier = "com.peekpane.app.native-host"
     public static let nativeHostName = "com.peekpane.bridge"
     public static let protocolVersion = 1
-    public static let stagedExtensionVersion = "1.0.0"
+    public static let stagedExtensionVersion = "1.1"
 
     public static let extensionPublicKeyBase64 = [
         "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu8PNgnhO6+KUVnhBmX/q",
@@ -19,6 +20,8 @@ public enum BridgeConstants {
     ].joined()
     public static let pinnedExtensionID = "noibghleoblgaecnekfpbfngfgjolhab"
     public static let expectedExtensionOrigin = "chrome-extension://\(pinnedExtensionID)"
+    public static let firefoxExtensionID = "bridge@peekpane.app"
+    public static let firefoxOriginSchemePrefix = "moz-extension://"
 
     public static func appSupportDirectoryURL(
         homeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser
@@ -34,6 +37,20 @@ public enum BridgeConstants {
     ) -> URL {
         appSupportDirectoryURL(homeDirectoryURL: homeDirectoryURL)
             .appendingPathComponent("Extension", isDirectory: true)
+    }
+
+    public static func stagedFirefoxExtensionDirectoryURL(
+        homeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) -> URL {
+        appSupportDirectoryURL(homeDirectoryURL: homeDirectoryURL)
+            .appendingPathComponent("FirefoxExtension", isDirectory: true)
+    }
+
+    public static func stagedFirefoxSignedXPIURL(
+        homeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) -> URL {
+        appSupportDirectoryURL(homeDirectoryURL: homeDirectoryURL)
+            .appendingPathComponent("peekpane-firefox.xpi", isDirectory: false)
     }
 
     public static func endpointFileURL(

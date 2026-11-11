@@ -2,13 +2,13 @@ import AppKit
 import SwiftUI
 
 struct ExtensionSetupSheetView: View {
-    let browser: SupportedChromiumBrowser
+    let browser: SupportedBrowser
     @ObservedObject var coordinator: AppCoordinator
     @ObservedObject var extensionManager: ExtensionBundleManager
     @ObservedObject var bridgeServer: BrowserBridgeServer
     @State private var copiedAddress: Bool = false
 
-    init(browser: SupportedChromiumBrowser, coordinator: AppCoordinator) {
+    init(browser: SupportedBrowser, coordinator: AppCoordinator) {
         self.browser = browser
         self.coordinator = coordinator
         self.extensionManager = coordinator.extensionManager
@@ -16,31 +16,31 @@ struct ExtensionSetupSheetView: View {
     }
 
     var body: some View {
-        let isLiveConnected = bridgeServer.isCurrentlyConnected(bundleIdentifier: browser.bundleIdentifier)
-        let isOutdated = bridgeServer.outdatedVersionBundleIDs.contains(browser.bundleIdentifier)
-        let shortcut = bridgeServer.actionShortcut(for: browser.bundleIdentifier) ?? "⌥⇧P"
+        let isLiveConnected = bridgeServer.isCurrentlyConnected(for: browser)
+        let isOutdated = bridgeServer.isOutdated(for: browser)
+        let shortcut = bridgeServer.actionShortcut(for: browser) ?? "⌥⇧P"
 
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
-                Image(nsImage: browser.appIcon)
-                    .resizable()
-                    .frame(width: 36, height: 36)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Float Individual \(browser.displayName) Tabs")
-                        .font(.title3.weight(.semibold))
-                    Text("Streams a tab region without browser chrome, even when you switch tabs or minimize.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
+            headerSection
 
             if extensionManager.isAppTranslocated {
                 WarningCalloutView(
                     icon: "exclamationmark.triangle.fill",
                     tint: .orange,
-                    text: "Move PeekPane.app to /Applications and relaunch before setting up the browser bridge."
+                    text:
+                        "Move \(AppBuildIdentity.appName).app to /Applications and relaunch "
+                        + "before setting up the browser bridge."
+                )
+            }
+
+            if browser.engineFamily == .gecko {
+                WarningCalloutView(
+                    icon: "info.circle.fill",
+                    tint: .blue,
+                    text:
+                        "\(browser.shortLabel) streams via Gecko tab snapshots (~12–15 FPS) — ideal for "
+                        + "dashboards, tickers, trackers, and logs. For 60 FPS video, use full-window capture "
+                        + "or \(browser.shortLabel)'s built-in Picture-in-Picture."
                 )
             }
 
@@ -50,21 +50,183 @@ struct ExtensionSetupSheetView: View {
                     tint: .blue,
                     text:
                         "A newer PeekPane extension is staged. "
-                        + "Click Reload on \(browser.extensionsURLString) if needed."
+                        + "Reload it from \(browser.extensionsURLString) if needed."
                 )
             }
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 14) {
+            if browser.engineFamily == .gecko {
+                GeckoSetupStepsView(
+                    browser: browser,
+                    shortcut: shortcut,
+                    hasSignedXPI: extensionManager.hasSignedFirefoxXPI,
+                    xpiPath: extensionManager.stagedFirefoxSignedXPIURL.path,
+                    manifestPath: extensionManager.stagedFirefoxManifestURL.path,
+                    copiedAddress: $copiedAddress,
+                    onInstallSignedXPI: {
+                        extensionManager.openSignedFirefoxXPI(in: browser)
+                    },
+                    onRevealItem: {
+                        extensionManager.revealStagedFirefoxItemInFinder()
+                    }
+                )
+            } else {
+                ChromiumSetupStepsView(
+                    browser: browser,
+                    shortcut: shortcut,
+                    stagedFolderPath: extensionManager.stagedExtensionURL.path,
+                    copiedAddress: $copiedAddress
+                ) {
+                    extensionManager.revealStagedExtensionInFinder()
+                }
+            }
+
+            Divider()
+
+            footerSection(isLiveConnected: isLiveConnected)
+        }
+        .padding(22)
+        .frame(width: 540)
+    }
+
+    private var headerSection: some View {
+        HStack(spacing: 12) {
+            Image(nsImage: browser.appIcon)
+                .resizable()
+                .frame(width: 36, height: 36)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Float Individual \(browser.displayName) Tabs")
+                    .font(.title3.weight(.semibold))
+                Text(
+                    browser.engineFamily == .gecko
+                        ? "Streams a background tab region (~12–15 FPS) without browser toolbars."
+                        : "Streams a tab region without browser chrome, even when you switch tabs or minimize."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
+
+    private func footerSection(isLiveConnected: Bool) -> some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(isLiveConnected ? Color.green : Color.secondary.opacity(0.45))
+                .frame(width: 8, height: 8)
+            Text(
+                isLiveConnected
+                    ? "Connected to \(browser.displayName)! Ready to float tabs."
+                    : "Waiting for extension in \(browser.displayName)…"
+            )
+            .font(.caption.weight(.medium))
+            .foregroundStyle(isLiveConnected ? .primary : .secondary)
+
+            Spacer()
+
+            Button("Switch to \(browser.shortLabel) →") {
+                let target = browser
+                coordinator.setupSheetBrowser = nil
+                coordinator.beginBrowserTabHandoff(for: target, specificWindow: nil)
+            }
+            .buttonStyle(.bordered)
+
+            Button("Done") {
+                coordinator.setupSheetBrowser = nil
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.defaultAction)
+        }
+    }
+}
+
+private struct ChromiumSetupStepsView: View {
+    let browser: SupportedBrowser
+    let shortcut: String
+    let stagedFolderPath: String
+    @Binding var copiedAddress: Bool
+    let onRevealFolder: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SetupStepRow(
+                number: "1",
+                title: "Open \(browser.extensionsURLString) and enable Developer mode",
+                subtitle:
+                    "Paste the address into \(browser.shortLabel)'s URL bar "
+                    + "and toggle Developer mode on (top right)."
+            ) {
+                Button(copiedAddress ? "Copied!" : "Copy \(browser.extensionsURLString)") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(browser.extensionsURLString, forType: .string)
+                    copiedAddress = true
+                }
+                .controlSize(.small)
+            }
+
+            SetupStepRow(
+                number: "2",
+                title: "Click “Load unpacked” and choose PeekPane's Extension folder",
+                subtitle: stagedFolderPath
+            ) {
+                Button("Reveal Folder in Finder", action: onRevealFolder)
+                    .controlSize(.small)
+            }
+
+            SetupStepRow(
+                number: "3",
+                title: "Pin PeekPane from the puzzle-piece menu",
+                subtitle: "Click the toolbar icon (or press \(shortcut)) on any tab to snap or drag a region."
+            ) {
+                EmptyView()
+            }
+        }
+    }
+}
+
+private struct GeckoSetupStepsView: View {
+    let browser: SupportedBrowser
+    let shortcut: String
+    let hasSignedXPI: Bool
+    let xpiPath: String
+    let manifestPath: String
+    @Binding var copiedAddress: Bool
+    let onInstallSignedXPI: () -> Void
+    let onRevealItem: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if hasSignedXPI {
                 SetupStepRow(
                     number: "1",
-                    title: "Open \(browser.extensionsURLString) and enable Developer mode",
-                    subtitle:
-                        "Paste the address into \(browser.shortLabel)'s URL bar "
-                        + "and toggle Developer mode on (top right)."
+                    title: "Install the signed PeekPane add-on in \(browser.shortLabel)",
+                    subtitle: "Opens \(browser.shortLabel)'s native “Add PeekPane Tab Extractor?” prompt (\(xpiPath))."
                 ) {
-                    Button(copiedAddress ? "Copied!" : "Copy \(browser.extensionsURLString)") {
+                    HStack(spacing: 8) {
+                        Button("Install in \(browser.shortLabel)…", action: onInstallSignedXPI)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        Button("Reveal .xpi in Finder", action: onRevealItem)
+                            .controlSize(.small)
+                    }
+                }
+
+                SetupStepRow(
+                    number: "2",
+                    title: "Switch to any webpage tab and click PeekPane (or press \(shortcut))",
+                    subtitle: "Snap an element, drag a custom box, or float the full tab."
+                ) {
+                    EmptyView()
+                }
+            } else {
+                SetupStepRow(
+                    number: "1",
+                    title: "Open about:debugging#/runtime/this-firefox in \(browser.shortLabel)",
+                    subtitle: "Paste the address into \(browser.shortLabel)'s URL bar."
+                ) {
+                    Button(copiedAddress ? "Copied!" : "Copy about:debugging URL") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(browser.extensionsURLString, forType: .string)
                         copiedAddress = true
@@ -74,56 +236,24 @@ struct ExtensionSetupSheetView: View {
 
                 SetupStepRow(
                     number: "2",
-                    title: "Click “Load unpacked” and choose PeekPane's Extension folder",
-                    subtitle: extensionManager.stagedExtensionURL.path
+                    title: "Click “Load Temporary Add-on…” and select manifest.json",
+                    subtitle:
+                        "\(manifestPath)\n"
+                        + "Note: Unsigned Gecko add-ons stay loaded until \(browser.shortLabel) quits."
                 ) {
-                    Button("Reveal Folder in Finder") {
-                        extensionManager.revealStagedExtensionInFinder()
-                    }
-                    .controlSize(.small)
+                    Button("Reveal manifest.json in Finder", action: onRevealItem)
+                        .controlSize(.small)
                 }
 
                 SetupStepRow(
                     number: "3",
-                    title: "Pin PeekPane from the puzzle-piece menu",
-                    subtitle: "Click the toolbar icon (or press \(shortcut)) on any tab to snap or drag a region."
+                    title: "Switch to any webpage tab and click PeekPane (or press \(shortcut))",
+                    subtitle: "Snap an element, drag a custom box, or float the full tab."
                 ) {
                     EmptyView()
                 }
             }
-
-            Divider()
-
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(isLiveConnected ? Color.green : Color.secondary.opacity(0.45))
-                    .frame(width: 8, height: 8)
-                Text(
-                    isLiveConnected
-                        ? "Connected to \(browser.displayName)! Ready to float tabs."
-                        : "Waiting for extension in \(browser.displayName)…"
-                )
-                .font(.caption.weight(.medium))
-                .foregroundStyle(isLiveConnected ? .primary : .secondary)
-
-                Spacer()
-
-                Button("Switch to \(browser.shortLabel) →") {
-                    let target = browser
-                    coordinator.setupSheetBrowser = nil
-                    coordinator.beginBrowserTabHandoff(for: target, specificWindow: nil)
-                }
-                .buttonStyle(.bordered)
-
-                Button("Done") {
-                    coordinator.setupSheetBrowser = nil
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-            }
         }
-        .padding(22)
-        .frame(width: 520)
     }
 }
 

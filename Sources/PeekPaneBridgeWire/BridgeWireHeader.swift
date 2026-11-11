@@ -11,7 +11,7 @@ public enum BridgeWireError: Error, Equatable, Sendable {
     case oversizedFrame
 }
 
-/// 28-byte binary frame header preceding AVCC H.264 packets from `offscreen.js`.
+/// 28-byte binary frame header preceding AVCC H.264 or JPEG packets from browser extensions.
 public struct BridgeWireHeader: Equatable, Sendable {
     public static let byteLength = 28
     public static let magicByte0: UInt8 = 0x50
@@ -20,9 +20,11 @@ public struct BridgeWireHeader: Equatable, Sendable {
 
     public static let flagKeyframe: UInt8 = 1 << 0
     public static let flagHasAVCC: UInt8 = 1 << 1
+    public static let flagJPEGPayload: UInt8 = 1 << 2
 
     public var isKeyframe: Bool
     public var hasAVCC: Bool
+    public var isJPEGFrame: Bool
     public var tabID: UInt32
     public var sequenceNumber: UInt32
     public var timestampUs: UInt64
@@ -38,10 +40,12 @@ public struct BridgeWireHeader: Equatable, Sendable {
         timestampUs: UInt64,
         viewportWidth: UInt16,
         viewportHeight: UInt16,
-        avcCLength: UInt16
+        avcCLength: UInt16,
+        isJPEGFrame: Bool = false
     ) {
         self.isKeyframe = isKeyframe
         self.hasAVCC = hasAVCC
+        self.isJPEGFrame = isJPEGFrame
         self.tabID = tabID
         self.sequenceNumber = sequenceNumber
         self.timestampUs = timestampUs
@@ -57,6 +61,9 @@ public struct BridgeWireHeader: Equatable, Sendable {
         }
         if hasAVCC {
             result |= Self.flagHasAVCC
+        }
+        if isJPEGFrame {
+            result |= Self.flagJPEGPayload
         }
         return result
     }
@@ -92,6 +99,7 @@ public struct BridgeWireHeader: Equatable, Sendable {
         let rawFlags = data[base + 3]
         let isKeyframe = (rawFlags & Self.flagKeyframe) != 0
         let hasAVCC = (rawFlags & Self.flagHasAVCC) != 0
+        let isJPEGFrame = (rawFlags & Self.flagJPEGPayload) != 0
 
         let tabID = readUInt32BE(data, offset: base + 4)
         let seq = readUInt32BE(data, offset: base + 8)
@@ -108,7 +116,8 @@ public struct BridgeWireHeader: Equatable, Sendable {
             timestampUs: timestampUs,
             viewportWidth: viewportW,
             viewportHeight: viewportH,
-            avcCLength: avcCLen
+            avcCLength: avcCLen,
+            isJPEGFrame: isJPEGFrame
         )
     }
 
@@ -180,7 +189,7 @@ public struct BridgeVideoPacket: Equatable, Sendable {
         }
         let header = try BridgeWireHeader.decode(from: data)
         let avcCLen = Int(header.avcCLength)
-        if header.isKeyframe && (!header.hasAVCC || avcCLen == 0) {
+        if header.isKeyframe && !header.isJPEGFrame && (!header.hasAVCC || avcCLen == 0) {
             throw BridgeWireError.missingKeyframeAVCC
         }
 

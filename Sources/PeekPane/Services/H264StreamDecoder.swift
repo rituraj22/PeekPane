@@ -16,6 +16,7 @@ final class H264StreamDecoder: @unchecked Sendable {
     private var expectedSequenceNumber: UInt32?
     private var awaitingKeyframe: Bool = true
     private var isInvalidated: Bool = false
+    private let jpegDecoder = JPEGFrameDecoder()
 
     init(
         streamLabel: String,
@@ -52,6 +53,19 @@ final class H264StreamDecoder: @unchecked Sendable {
 
     private func decodeOnQueue(_ packet: BridgeVideoPacket) {
         guard !isInvalidated else { return }
+
+        if packet.header.isJPEGFrame {
+            let viewportSize = CGSize(
+                width: max(64, CGFloat(packet.header.viewportWidth)),
+                height: max(64, CGFloat(packet.header.viewportHeight))
+            )
+            if let (pixelBuffer, surface) = jpegDecoder.decode(jpegData: packet.naluData) {
+                awaitingKeyframe = false
+                expectedSequenceNumber = nil
+                onDecodedFrame(pixelBuffer, surface, viewportSize)
+            }
+            return
+        }
 
         if let expected = expectedSequenceNumber, packet.header.sequenceNumber != expected {
             if !packet.header.isKeyframe {
@@ -178,6 +192,7 @@ final class H264StreamDecoder: @unchecked Sendable {
         }
         formatDescription = nil
         activeAVCCBytes = nil
+        jpegDecoder.reset()
     }
 
     private static func createH264FormatDescription(from config: ParsedAVCCConfig) -> CMVideoFormatDescription? {

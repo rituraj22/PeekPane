@@ -1,0 +1,60 @@
+{
+  "manifest_version": 2,
+  "name": "PeekPane Tab Extractor",
+  "version": "1.1",
+  "description": "Float any region or full viewport of a Firefox or Gecko browser tab in PeekPane.",
+  "homepage_url": "https://github.com/rituraj22/PeekPane",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "bridge@peekpane.app",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
+  },
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "nativeMessaging",
+    "storage",
+    "alarms",
+    "<all_urls>"
+  ],
+  "browser_action": {
+    "default_area": "navbar",
+    "default_title": "Float Tab Region in PeekPane (⌥⇧P)",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "commands": {
+    "_execute_browser_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+P",
+        "mac": "Alt+Shift+P"
+      },
+      "description": "Select a tab region to float in PeekPane"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

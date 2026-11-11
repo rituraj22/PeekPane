@@ -1,24 +1,25 @@
 import SwiftUI
 
 struct ChromiumWindowBanner: View {
-    let browser: SupportedChromiumBrowser
+    let browser: SupportedBrowser
     let windowItem: ShareableWindowItem
     @ObservedObject var coordinator: AppCoordinator
     @ObservedObject var bridgeServer: BrowserBridgeServer
+    @ObservedObject var extensionManager: ExtensionBundleManager
 
-    init(browser: SupportedChromiumBrowser, windowItem: ShareableWindowItem, coordinator: AppCoordinator) {
+    init(browser: SupportedBrowser, windowItem: ShareableWindowItem, coordinator: AppCoordinator) {
         self.browser = browser
         self.windowItem = windowItem
         self.coordinator = coordinator
         self.bridgeServer = coordinator.bridgeServer
+        self.extensionManager = coordinator.extensionManager
     }
 
     var body: some View {
-        let isConfigured = bridgeServer.hasEverConnected(bundleIdentifier: browser.bundleIdentifier)
-        let bannerMessage =
-            isConfigured
-            ? "Capturing a full \(browser.shortLabel) window includes toolbars and changes when you switch tabs."
-            : "Float a single \(browser.shortLabel) tab — no toolbars, keeps streaming when you switch tabs."
+        let isConfigured =
+            bridgeServer.isCurrentlyConnected(for: browser)
+            || extensionManager.browsersWithInstalledExtension.contains(browser)
+        let bannerMessage = Self.makeBannerText(for: browser, isConfigured: isConfigured)
         HStack(spacing: 10) {
             Image(systemName: "globe")
                 .font(.system(size: 14, weight: .semibold))
@@ -63,5 +64,22 @@ struct ChromiumWindowBanner: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(Color.accentColor.opacity(0.09))
+    }
+
+    private static func makeBannerText(for browser: SupportedBrowser, isConfigured: Bool) -> String {
+        if browser.engineFamily == .gecko {
+            if isConfigured {
+                return
+                    "Full \(browser.shortLabel) window changes when switching tabs. "
+                    + "Tab extraction streams at ~12–15 FPS (best for dashboards & trackers)."
+            }
+            return
+                "Float a single \(browser.shortLabel) tab (~12–15 FPS for dashboards & trackers; "
+                + "use window capture or built-in PiP for 60 FPS video)."
+        }
+        if isConfigured {
+            return "Capturing a full \(browser.shortLabel) window includes toolbars and changes when you switch tabs."
+        }
+        return "Float a single \(browser.shortLabel) tab — no toolbars, keeps streaming when you switch tabs."
     }
 }

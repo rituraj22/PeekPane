@@ -54,8 +54,30 @@ struct NormalizedCropRect: Codable, Equatable, Sendable {
     }
 }
 
-/// Supported Chromium-based macOS desktop browsers for direct tab extraction.
-enum SupportedChromiumBrowser: String, CaseIterable, Identifiable, Sendable {
+enum AppBuildIdentity {
+    static let isDevBuild: Bool = {
+        if (Bundle.main.object(forInfoDictionaryKey: "PPIsDevBuild") as? Bool) == true {
+            return true
+        }
+        if Bundle.main.bundleIdentifier?.hasSuffix(".dev") == true {
+            return true
+        }
+        return Bundle.main.bundleURL.pathExtension != "app"
+    }()
+
+    static var appName: String {
+        isDevBuild ? "PeekPaneDev" : "PeekPane"
+    }
+}
+
+enum BrowserEngineFamily: Sendable {
+    case chromium
+    case gecko
+}
+
+/// Supported Chromium and Gecko-based macOS desktop browsers for direct tab extraction.
+enum SupportedBrowser: String, CaseIterable, Identifiable, Sendable {
+    // Chromium family
     case googleChrome = "com.google.Chrome"
     case arc = "company.thebrowser.Browser"
     case brave = "com.brave.Browser"
@@ -63,8 +85,40 @@ enum SupportedChromiumBrowser: String, CaseIterable, Identifiable, Sendable {
     case vivaldi = "com.vivaldi.Vivaldi"
     case chromium = "org.chromium.Chromium"
 
+    // Gecko (Firefox & forks) family
+    case firefox = "org.mozilla.firefox"
+    case firefoxDeveloperEdition = "org.mozilla.firefoxdeveloperedition"
+    case zen = "app.zen-browser.zen"
+    case libreWolf = "io.gitlab.librewolf-community.librewolf"
+    case floorp = "one.ablaze.floorp"
+    case waterfox = "net.waterfox.waterfox"
+
     var id: String { rawValue }
-    var bundleIdentifier: String { rawValue }
+
+    var engineFamily: BrowserEngineFamily {
+        switch self {
+        case .googleChrome, .arc, .brave, .edge, .vivaldi, .chromium:
+            .chromium
+        case .firefox, .firefoxDeveloperEdition, .zen, .libreWolf, .floorp, .waterfox:
+            .gecko
+        }
+    }
+
+    var candidateBundleIdentifiers: [String] {
+        switch self {
+        case .libreWolf:
+            [rawValue, "net.librewolf.librewolf", "org.mozilla.librewolf"]
+        default:
+            [rawValue]
+        }
+    }
+
+    static func from(bundleIdentifier: String) -> Self? {
+        if let direct = Self(rawValue: bundleIdentifier) {
+            return direct
+        }
+        return Self.allCases.first { $0.candidateBundleIdentifiers.contains(bundleIdentifier) }
+    }
 
     var displayName: String {
         switch self {
@@ -74,6 +128,12 @@ enum SupportedChromiumBrowser: String, CaseIterable, Identifiable, Sendable {
         case .edge: "Microsoft Edge"
         case .vivaldi: "Vivaldi"
         case .chromium: "Chromium"
+        case .firefox: "Firefox"
+        case .firefoxDeveloperEdition: "Firefox Developer Edition"
+        case .zen: "Zen Browser"
+        case .libreWolf: "LibreWolf"
+        case .floorp: "Floorp"
+        case .waterfox: "Waterfox"
         }
     }
 
@@ -85,6 +145,12 @@ enum SupportedChromiumBrowser: String, CaseIterable, Identifiable, Sendable {
         case .edge: "Edge"
         case .vivaldi: "Vivaldi"
         case .chromium: "Chromium"
+        case .firefox: "Firefox"
+        case .firefoxDeveloperEdition: "Firefox Dev"
+        case .zen: "Zen"
+        case .libreWolf: "LibreWolf"
+        case .floorp: "Floorp"
+        case .waterfox: "Waterfox"
         }
     }
 
@@ -94,6 +160,8 @@ enum SupportedChromiumBrowser: String, CaseIterable, Identifiable, Sendable {
         case .brave: "brave://extensions"
         case .edge: "edge://extensions"
         case .vivaldi: "vivaldi://extensions"
+        case .firefox, .firefoxDeveloperEdition, .zen, .libreWolf, .floorp, .waterfox:
+            "about:debugging#/runtime/this-firefox"
         }
     }
 
@@ -105,12 +173,22 @@ enum SupportedChromiumBrowser: String, CaseIterable, Identifiable, Sendable {
         case .edge: "Microsoft Edge"
         case .vivaldi: "Vivaldi"
         case .chromium: "Chromium"
+        case .firefox, .firefoxDeveloperEdition: "Mozilla"
+        case .zen: "zen"
+        case .libreWolf: "LibreWolf"
+        case .floorp: "Floorp"
+        case .waterfox: "Waterfox"
         }
     }
 
     @MainActor
     var installedAppURL: URL? {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
+        for candidateID in candidateBundleIdentifiers {
+            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: candidateID) {
+                return url
+            }
+        }
+        return nil
     }
 
     @MainActor
@@ -122,13 +200,13 @@ enum SupportedChromiumBrowser: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// Uniquely identifies an active browser tab stream across multiple Chromium profiles.
+/// Uniquely identifies an active browser tab stream across multiple Chromium or Gecko profiles.
 struct TabStreamKey: Hashable, Codable, Sendable {
     let extensionInstanceID: String
     let tabID: UInt32
 }
 
-/// Metadata for a live Chromium browser tab source.
+/// Metadata for a live Chromium or Gecko browser tab source.
 struct BrowserTabSourceItem: Identifiable, Hashable {
     let streamKey: TabStreamKey
     let browserBundleIdentifier: String
@@ -140,7 +218,7 @@ struct BrowserTabSourceItem: Identifiable, Hashable {
     var id: TabStreamKey { streamKey }
 
     var browserDisplayName: String {
-        SupportedChromiumBrowser(rawValue: browserBundleIdentifier)?.displayName ?? "Browser"
+        SupportedBrowser.from(bundleIdentifier: browserBundleIdentifier)?.displayName ?? "Browser"
     }
 
     var shortTitle: String {

@@ -37,11 +37,10 @@ final class BrowserBridgeServer: ObservableObject {
         }
     }
 
-    private static let everConnectedDefaultsKey = "com.peekpane.everConnectedBrowsers"
+    private static let legacyEverConnectedDefaultsKey = "com.peekpane.everConnectedBrowsers"
     private static let shortcutsDefaultsKey = "com.peekpane.browserShortcuts"
 
     @Published private(set) var connectedBrowsers: [String: ConnectedBrowserInfo] = [:]
-    @Published private(set) var everConnectedBundleIDs: Set<String>
     @Published private(set) var cachedShortcutsByBundleID: [String: String]
     @Published private(set) var outdatedVersionBundleIDs: Set<String> = []
 
@@ -62,8 +61,7 @@ final class BrowserBridgeServer: ObservableObject {
 
     init() {
         self.authToken = Self.generateRandomHexToken()
-        let savedConnected = UserDefaults.standard.stringArray(forKey: Self.everConnectedDefaultsKey) ?? []
-        self.everConnectedBundleIDs = Set(savedConnected)
+        UserDefaults.standard.removeObject(forKey: Self.legacyEverConnectedDefaultsKey)
         self.cachedShortcutsByBundleID =
             (UserDefaults.standard.dictionary(forKey: Self.shortcutsDefaultsKey) as? [String: String]) ?? [:]
     }
@@ -137,21 +135,24 @@ final class BrowserBridgeServer: ObservableObject {
         }
     }
 
-    func hasEverConnected(bundleIdentifier: String) -> Bool {
-        everConnectedBundleIDs.contains(bundleIdentifier)
-            || connectedBrowsers.values.contains { $0.browserBundleIdentifier == bundleIdentifier }
+    func isCurrentlyConnected(for browser: SupportedBrowser) -> Bool {
+        let candidates = Set(browser.candidateBundleIdentifiers)
+        return connectedBrowsers.values.contains { candidates.contains($0.browserBundleIdentifier) }
     }
 
-    func isCurrentlyConnected(bundleIdentifier: String) -> Bool {
-        connectedBrowsers.values.contains { $0.browserBundleIdentifier == bundleIdentifier }
+    func isOutdated(for browser: SupportedBrowser) -> Bool {
+        !outdatedVersionBundleIDs.isDisjoint(with: browser.candidateBundleIdentifiers)
     }
 
-    func actionShortcut(for bundleIdentifier: String) -> String? {
-        if let live = connectedBrowsers.values.first(where: { $0.browserBundleIdentifier == bundleIdentifier }) {
+    func actionShortcut(for browser: SupportedBrowser) -> String? {
+        let candidates = Set(browser.candidateBundleIdentifiers)
+        if let live = connectedBrowsers.values.first(where: { candidates.contains($0.browserBundleIdentifier) }) {
             return live.actionShortcut.isEmpty ? nil : live.actionShortcut
         }
-        if let cached = cachedShortcutsByBundleID[bundleIdentifier] {
-            return cached.isEmpty ? nil : cached
+        for candidate in browser.candidateBundleIdentifiers {
+            if let cached = cachedShortcutsByBundleID[candidate] {
+                return cached.isEmpty ? nil : cached
+            }
         }
         return "⌥⇧P"
     }
@@ -159,9 +160,6 @@ final class BrowserBridgeServer: ObservableObject {
     func recordConnectedBrowser(info: ConnectedBrowserInfo) {
         connectedBrowsers[info.extensionInstanceID] = info
         if !info.browserBundleIdentifier.isEmpty {
-            if everConnectedBundleIDs.insert(info.browserBundleIdentifier).inserted {
-                UserDefaults.standard.set(Array(everConnectedBundleIDs), forKey: Self.everConnectedDefaultsKey)
-            }
             cachedShortcutsByBundleID[info.browserBundleIdentifier] = info.actionShortcut
             UserDefaults.standard.set(cachedShortcutsByBundleID, forKey: Self.shortcutsDefaultsKey)
 
@@ -177,10 +175,11 @@ final class BrowserBridgeServer: ObservableObject {
         connectedBrowsers.removeValue(forKey: instanceID)
     }
 
-    func highlightActionBadge(for bundleIdentifier: String) {
+    func highlightActionBadge(for browser: SupportedBrowser) {
+        let candidates = Set(browser.candidateBundleIdentifiers)
         let matchingIDs =
             connectedBrowsers
-            .filter { $0.value.browserBundleIdentifier == bundleIdentifier }
+            .filter { candidates.contains($0.value.browserBundleIdentifier) }
             .map(\.key)
         for instanceID in matchingIDs {
             sendControlMessage(BridgeOutboundMessage(type: "highlight_action_badge"), toInstanceID: instanceID)

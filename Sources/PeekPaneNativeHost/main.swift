@@ -136,22 +136,25 @@ private enum PeekPaneNativeHostRunner {
     private static func detectParentBrowserBundleIdentifier() -> String? {
         let parentPID = getppid()
         guard parentPID > 1 else { return nil }
+        var pathBuffer = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
+        let length = proc_pidpath(parentPID, &pathBuffer, UInt32(pathBuffer.count))
+        if length > 0 {
+            let processPath = String(cString: pathBuffer)
+            let components = URL(fileURLWithPath: processPath).pathComponents
+            if let outerAppIndex = components.firstIndex(where: { $0.hasSuffix(".app") }),
+                let appURL = NSURL.fileURL(withPathComponents: Array(components.prefix(outerAppIndex + 1))),
+                let outerBundleID = Bundle(url: appURL)?.bundleIdentifier,
+                !outerBundleID.isEmpty
+            {
+                return outerBundleID
+            }
+        }
         if let directBundleID = NSRunningApplication(processIdentifier: parentPID)?.bundleIdentifier,
             !directBundleID.isEmpty
         {
             return directBundleID
         }
-        var pathBuffer = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
-        let length = proc_pidpath(parentPID, &pathBuffer, UInt32(pathBuffer.count))
-        guard length > 0 else { return nil }
-        let processPath = String(cString: pathBuffer)
-        let components = URL(fileURLWithPath: processPath).pathComponents
-        guard let outerAppIndex = components.firstIndex(where: { $0.hasSuffix(".app") }) else {
-            return nil
-        }
-        let appURL = NSURL.fileURL(withPathComponents: Array(components.prefix(outerAppIndex + 1)))
-        guard let appURL else { return nil }
-        return Bundle(url: appURL)?.bundleIdentifier
+        return nil
     }
 
     private static func readLiveEndpoint() -> BridgeEndpointInfo? {
@@ -229,7 +232,8 @@ private enum PeekPaneNativeHostRunner {
                 return candidate
             }
         }
-        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: BridgeConstants.appBundleIdentifier)
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: BridgeConstants.devAppBundleIdentifier)
+            ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: BridgeConstants.appBundleIdentifier)
     }
 
     private static func launchBackgroundApp(at appBundleURL: URL) {

@@ -81,12 +81,19 @@ extension FloatingPlayerSession {
         onActivateBrowserTab?(tabItem)
         let bundleID = tabItem.browserBundleIdentifier
         guard !bundleID.isEmpty else { return }
-        if let runningApp = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
+        let candidateIDs = SupportedBrowser.from(bundleIdentifier: bundleID)?.candidateBundleIdentifiers ?? [bundleID]
+        if let runningApp = candidateIDs.lazy
+            .compactMap({ NSRunningApplication.runningApplications(withBundleIdentifier: $0).first })
+            .first
+        {
             if runningApp.isHidden {
                 runningApp.unhide()
             }
             _ = runningApp.activate(options: NSApplication.ActivationOptions(rawValue: 3))
-        } else if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+        } else if let appURL = candidateIDs.lazy
+            .compactMap({ NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) })
+            .first
+        {
             let config = NSWorkspace.OpenConfiguration()
             config.activates = true
             NSWorkspace.shared.openApplication(at: appURL, configuration: config, completionHandler: nil)

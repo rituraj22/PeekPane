@@ -186,13 +186,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .frame(minWidth: 820, minHeight: 540)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "PeekPane — Window Region Floating Pane"
+        window.title = "\(AppBuildIdentity.appName) — Window Region Floating Pane"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 960, height: 640))
         window.minSize = NSSize(width: 820, height: 540)
         window.isReleasedWhenClosed = false
         window.center()
-        window.setFrameAutosaveName("PeekPaneMainWindow")
+        let autosaveName = AppBuildIdentity.isDevBuild ? "PeekPaneDevMainWindow" : "PeekPaneMainWindow"
+        window.setFrameAutosaveName(autosaveName)
         self.mainWindow = window
         return window
     }
@@ -216,7 +217,7 @@ struct PeekPaneApp: App {
         MenuBarExtra {
             MenuBarExtraContentView(appDelegate: appDelegate, coordinator: appDelegate.coordinator)
         } label: {
-            Image(nsImage: MenuBarIconRenderer.templateImage())
+            Image(nsImage: MenuBarIconRenderer.templateImage(isDevBuild: AppBuildIdentity.isDevBuild))
         }
     }
 }
@@ -226,6 +227,12 @@ private struct MenuBarExtraContentView: View {
     @ObservedObject var coordinator: AppCoordinator
 
     var body: some View {
+        if AppBuildIdentity.isDevBuild {
+            Text("DEV BUILD • \(AppBuildIdentity.appName)")
+                .font(.caption.weight(.semibold))
+            Divider()
+        }
+
         Button {
             for s in coordinator.activeSessions {
                 s.isClickThrough = false
@@ -248,11 +255,11 @@ private struct MenuBarExtraContentView: View {
 
         Divider()
 
-        Button("Open PeekPane Window") {
+        Button("Open \(AppBuildIdentity.appName) Window") {
             appDelegate.showMainWindow()
         }
 
-        Button("Quit PeekPane") {
+        Button("Quit \(AppBuildIdentity.appName)") {
             coordinator.closeAllSessions()
             NSApp.terminate(nil)
         }
@@ -261,69 +268,99 @@ private struct MenuBarExtraContentView: View {
 }
 
 enum MenuBarIconRenderer {
-    static func templateImage(size: CGFloat = 18) -> NSImage {
+    static func templateImage(size: CGFloat = 18, isDevBuild: Bool = false) -> NSImage {
+        let scale = size / 18.0
         let imgSize = NSSize(width: size, height: size)
-        let image = NSImage(size: imgSize, flipped: true) { rect in
-            let s = min(rect.width, rect.height)
-            let scale = s / 18.0
+        let image = NSImage(size: imgSize, flipped: true) { _ in
             NSColor.black.setStroke()
             NSColor.black.setFill()
-
-            // 1. Floating hero rounded-rect pane (matches AppIcon.svg hero glass slab)
-            let paneRect = NSRect(
-                x: 1.8 * scale,
-                y: 2.0 * scale,
-                width: 14.4 * scale,
-                height: 9.6 * scale
-            )
-            let panePath = NSBezierPath(
-                roundedRect: paneRect,
-                xRadius: 2.8 * scale,
-                yRadius: 2.8 * scale
-            )
-            panePath.lineWidth = 1.55 * scale
-            panePath.stroke()
-
-            // 2. Interior widget shapes: left orb + two right horizontal pills
-            let orbDiameter = 3.4 * scale
-            let orbRect = NSRect(
-                x: 4.1 * scale,
-                y: 5.1 * scale,
-                width: orbDiameter,
-                height: orbDiameter
-            )
-            NSBezierPath(ovalIn: orbRect).fill()
-
-            let topPill = NSRect(
-                x: 8.8 * scale,
-                y: 5.0 * scale,
-                width: 5.0 * scale,
-                height: 1.5 * scale
-            )
-            NSBezierPath(roundedRect: topPill, xRadius: 0.75 * scale, yRadius: 0.75 * scale).fill()
-
-            let bottomPill = NSRect(
-                x: 8.8 * scale,
-                y: 7.3 * scale,
-                width: 3.6 * scale,
-                height: 1.5 * scale
-            )
-            NSBezierPath(roundedRect: bottomPill, xRadius: 0.75 * scale, yRadius: 0.75 * scale).fill()
-
-            // 3. Perspective base deck / glowing origin bar below the floating pane
-            let deckPath = NSBezierPath()
-            deckPath.move(to: NSPoint(x: 4.4 * scale, y: 13.8 * scale))
-            deckPath.line(to: NSPoint(x: 13.6 * scale, y: 13.8 * scale))
-            deckPath.line(to: NSPoint(x: 15.6 * scale, y: 16.2 * scale))
-            deckPath.line(to: NSPoint(x: 2.4 * scale, y: 16.2 * scale))
-            deckPath.close()
-            deckPath.lineWidth = 1.35 * scale
-            deckPath.lineJoinStyle = .round
-            deckPath.stroke()
-
+            drawPaneGlyph(scale: scale)
+            if isDevBuild {
+                drawDevIndicatorDot(scale: scale)
+            }
             return true
         }
         image.isTemplate = true
         return image
+    }
+
+    private static func drawPaneGlyph(scale: CGFloat) {
+        // 1. Floating hero rounded-rect pane (matches AppIcon.svg hero glass slab)
+        let paneRect = NSRect(
+            x: 1.8 * scale,
+            y: 2.0 * scale,
+            width: 14.4 * scale,
+            height: 9.6 * scale
+        )
+        let panePath = NSBezierPath(
+            roundedRect: paneRect,
+            xRadius: 2.8 * scale,
+            yRadius: 2.8 * scale
+        )
+        panePath.lineWidth = 1.55 * scale
+        panePath.stroke()
+
+        // 2. Interior widget shapes: left orb + two right horizontal pills
+        let orbDiameter = 3.4 * scale
+        let orbRect = NSRect(
+            x: 4.1 * scale,
+            y: 5.1 * scale,
+            width: orbDiameter,
+            height: orbDiameter
+        )
+        NSBezierPath(ovalIn: orbRect).fill()
+
+        let topPill = NSRect(
+            x: 8.8 * scale,
+            y: 5.0 * scale,
+            width: 5.0 * scale,
+            height: 1.5 * scale
+        )
+        NSBezierPath(roundedRect: topPill, xRadius: 0.75 * scale, yRadius: 0.75 * scale).fill()
+
+        let bottomPill = NSRect(
+            x: 8.8 * scale,
+            y: 7.3 * scale,
+            width: 3.6 * scale,
+            height: 1.5 * scale
+        )
+        NSBezierPath(roundedRect: bottomPill, xRadius: 0.75 * scale, yRadius: 0.75 * scale).fill()
+
+        // 3. Perspective base deck / glowing origin bar below the floating pane
+        let deckPath = NSBezierPath()
+        deckPath.move(to: NSPoint(x: 4.4 * scale, y: 13.8 * scale))
+        deckPath.line(to: NSPoint(x: 13.6 * scale, y: 13.8 * scale))
+        deckPath.line(to: NSPoint(x: 15.6 * scale, y: 16.2 * scale))
+        deckPath.line(to: NSPoint(x: 2.4 * scale, y: 16.2 * scale))
+        deckPath.close()
+        deckPath.lineWidth = 1.35 * scale
+        deckPath.lineJoinStyle = .round
+        deckPath.stroke()
+    }
+
+    private static func drawDevIndicatorDot(scale: CGFloat) {
+        let center = NSPoint(x: 15.5 * scale, y: 2.5 * scale)
+        let haloRadius = 2.65 * scale
+        let dotRadius = 1.65 * scale
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current?.compositingOperation = .clear
+        let haloRect = NSRect(
+            x: center.x - haloRadius,
+            y: center.y - haloRadius,
+            width: haloRadius * 2.0,
+            height: haloRadius * 2.0
+        )
+        NSBezierPath(ovalIn: haloRect).fill()
+        NSGraphicsContext.restoreGraphicsState()
+
+        NSColor.black.setFill()
+        let dotRect = NSRect(
+            x: center.x - dotRadius,
+            y: center.y - dotRadius,
+            width: dotRadius * 2.0,
+            height: dotRadius * 2.0
+        )
+        NSBezierPath(ovalIn: dotRect).fill()
     }
 }

@@ -84,7 +84,7 @@
         role: 'stream',
         extensionInstanceId: endpointConfig.extensionInstanceId,
         browserBundleId: endpointConfig.browserBundleId || '',
-        extensionVersion: endpointConfig.extensionVersion || '1.0.0',
+        extensionVersion: endpointConfig.extensionVersion || '1.1',
         actionShortcut: '',
         token: endpointConfig.token
       }));

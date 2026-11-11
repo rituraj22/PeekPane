@@ -3,9 +3,14 @@ import CoreGraphics
 import Foundation
 
 extension AppCoordinator {
-    var selectedChromiumBrowser: SupportedChromiumBrowser? {
+    var selectedSupportedBrowser: SupportedBrowser? {
         guard let bundleID = selectedWindow?.bundleIdentifier else { return nil }
-        return SupportedChromiumBrowser(rawValue: bundleID)
+        return SupportedBrowser.from(bundleIdentifier: bundleID)
+    }
+
+    func isExtensionConfigured(for browser: SupportedBrowser) -> Bool {
+        bridgeServer.isCurrentlyConnected(for: browser)
+            || extensionManager.browsersWithInstalledExtension.contains(browser)
     }
 
     func startBrowserBridgeServices() {
@@ -31,17 +36,19 @@ extension AppCoordinator {
         bridgeServer.stop()
     }
 
-    func handleSidebarBrowserButtonTap(_ browser: SupportedChromiumBrowser) {
-        if bridgeServer.hasEverConnected(bundleIdentifier: browser.bundleIdentifier) {
+    func handleSidebarBrowserButtonTap(_ browser: SupportedBrowser) {
+        extensionManager.refreshInstalledBrowsers()
+        if isExtensionConfigured(for: browser) {
             beginBrowserTabHandoff(for: browser, specificWindow: nil)
         } else {
             setupSheetBrowser = browser
         }
     }
 
-    func beginBrowserTabHandoff(for browser: SupportedChromiumBrowser, specificWindow: ShareableWindowItem?) {
-        let bundleID = browser.bundleIdentifier
-        let runningApp = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first
+    func beginBrowserTabHandoff(for browser: SupportedBrowser, specificWindow: ShareableWindowItem?) {
+        let runningApp = browser.candidateBundleIdentifiers.lazy
+            .compactMap { NSRunningApplication.runningApplications(withBundleIdentifier: $0).first }
+            .first
         var anchorBounds: CGRect? = specificWindow?.frame
 
         if let runningApp {
@@ -72,13 +79,14 @@ extension AppCoordinator {
             NSWorkspace.shared.openApplication(at: appURL, configuration: config, completionHandler: nil)
         }
 
-        bridgeServer.highlightActionBadge(for: bundleID)
+        bridgeServer.highlightActionBadge(for: browser)
         showHandoffBanner(for: browser, anchorCGWindowBounds: anchorBounds)
     }
 
     func populateBrowserTabItems(into menu: NSMenu) {
+        extensionManager.refreshInstalledBrowsers()
         let configured = extensionManager.installedBrowsers.filter {
-            bridgeServer.hasEverConnected(bundleIdentifier: $0.bundleIdentifier)
+            isExtensionConfigured(for: $0)
         }
         guard !configured.isEmpty else { return }
 
@@ -108,8 +116,8 @@ extension AppCoordinator {
         dismissHandoffBanner()
 
         let icon =
-            SupportedChromiumBrowser(rawValue: event.browserBundleIdentifier)?.appIcon
-            ?? NSWorkspace.shared.icon(for: .applicationBundle)
+            SupportedBrowser.from(bundleIdentifier: event.browserBundleIdentifier)?.appIcon
+            ?? Self.resolveApplicationIcon(bundleIdentifier: event.browserBundleIdentifier)
         let tabItem = BrowserTabSourceItem(
             streamKey: event.streamKey,
             browserBundleIdentifier: event.browserBundleIdentifier,
@@ -140,9 +148,18 @@ extension AppCoordinator {
         session.showFloatingPanel(initialScreenRect: nil)
     }
 
-    private func showHandoffBanner(for browser: SupportedChromiumBrowser, anchorCGWindowBounds: CGRect?) {
+    private static func resolveApplicationIcon(bundleIdentifier: String) -> NSImage {
+        if !bundleIdentifier.isEmpty,
+            let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
+        {
+            return NSWorkspace.shared.icon(forFile: url.path)
+        }
+        return NSWorkspace.shared.icon(for: .applicationBundle)
+    }
+
+    private func showHandoffBanner(for browser: SupportedBrowser, anchorCGWindowBounds: CGRect?) {
         dismissHandoffBanner()
-        let shortcut = bridgeServer.actionShortcut(for: browser.bundleIdentifier)
+        let shortcut = bridgeServer.actionShortcut(for: browser)
         let banner = BrowserHandoffBannerPanel(
             browserIcon: browser.appIcon,
             browserName: browser.shortLabel,

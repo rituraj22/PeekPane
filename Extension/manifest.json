@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PeekPane — Float Browser Tab Region",
-  "version": "1.0.0",
+  "version": "1.1",
   "description": "Float any region or full viewport of a browser tab in PeekPane without toolbars, even while switching tabs or minimizing.",
   "minimum_chrome_version": "116",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu8PNgnhO6+KUVnhBmX/qGvPquvALdJcGKuajVfV75id/tf+5IaNFlCLZcPQS+ktQYZfKd0V5aqJJ8Fu7RcxQee+XLf06rMiEZ+Z5yHkWnJfRreOTROfG05h68JdVNbCXCNqmI7wkAlmPt8BogoSHktVs++K7LKvbaSWhNGSLRnMXX3UJJoGMBlrMEdZLd8OmgUvQDhif/fxLCdLsHZ7bIpnnldi2EzhKLgo/0NE8mXCIG+V3inBARKM9++tLrohZprMUQdaCacrsv7yvzBre+zuet9siKhOT8dZsULsyhDHy3qRFZ6zndjF6aTGyAWV2ry6luYELaALfkMZ7LR4d1wIDAQAB",
@@ -15,7 +15,13 @@
     "alarms"
   ],
   "action": {
-    "default_title": "Float Tab Region in PeekPane (⌥⇧P)"
+    "default_title": "Float Tab Region in PeekPane (⌥⇧P)",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
   "background": {
     "service_worker": "service-worker.js"
@@ -31,6 +37,7 @@
   },
   "icons": {
     "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   }

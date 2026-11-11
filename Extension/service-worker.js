@@ -26,7 +26,7 @@
   const capturedTabs = new Map();
 
   function getManifestVersion() {
-    return chrome.runtime.getManifest().version || '1.0.0';
+    return chrome.runtime.getManifest().version || '1.1';
   }
 
   function parseSemverTuple(versionStr) {

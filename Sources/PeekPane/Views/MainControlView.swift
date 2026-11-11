@@ -12,7 +12,7 @@ final class AppCoordinator: ObservableObject {
     @Published var selectedPreviewImage: NSImage?
     @Published var draftCropRect: NormalizedCropRect?
     @Published var searchQuery: String = ""
-    @Published var setupSheetBrowser: SupportedChromiumBrowser?
+    @Published var setupSheetBrowser: SupportedBrowser?
     var handoffBannerPanel: BrowserHandoffBannerPanel?
 
     private var previewTask: Task<Void, Never>?
@@ -36,9 +36,11 @@ final class AppCoordinator: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self,
-                    !self.discovery.hasScreenRecordingPermission || self.discovery.windows.isEmpty
-                else { return }
+                guard let self else { return }
+                self.extensionManager.refreshInstalledBrowsers()
+                guard !self.discovery.hasScreenRecordingPermission || self.discovery.windows.isEmpty else {
+                    return
+                }
                 Task { @MainActor [weak self] in
                     await self?.initialLoad()
                 }
@@ -155,8 +157,9 @@ final class AppCoordinator: ObservableObject {
     }
 
     func presentWindowPickerMenu(for session: FloatingPlayerSession) async {
+        extensionManager.refreshInstalledBrowsers()
         let hasConfiguredBrowsers = extensionManager.installedBrowsers.contains {
-            bridgeServer.hasEverConnected(bundleIdentifier: $0.bundleIdentifier)
+            isExtensionConfigured(for: $0)
         }
         let hasScreenPermission =
             hasConfiguredBrowsers ? discovery.checkPermissionStatus() : discovery.checkAndRequestPermission()
@@ -274,8 +277,12 @@ struct MainControlView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                if AppBuildIdentity.isDevBuild {
+                    DevBuildBadgeView()
+                }
                 Button {
                     Task {
+                        coordinator.extensionManager.refreshInstalledBrowsers()
                         await discovery.refreshWindows(loadThumbnails: true)
                         await coordinator.refreshSelectedPreview()
                     }
@@ -290,9 +297,15 @@ struct MainControlView: View {
             coordinator.extensionManager.refreshInstalledBrowsers()
             await coordinator.initialLoad()
         }
-        .sheet(item: $coordinator.setupSheetBrowser) { browser in
-            ExtensionSetupSheetView(browser: browser, coordinator: coordinator)
-        }
+        .sheet(
+            item: $coordinator.setupSheetBrowser,
+            onDismiss: {
+                coordinator.extensionManager.refreshInstalledBrowsers()
+            },
+            content: { browser in
+                ExtensionSetupSheetView(browser: browser, coordinator: coordinator)
+            }
+        )
     }
 
     // MARK: - Sidebar (Open Windows + Active Floating Panes)
@@ -484,9 +497,9 @@ struct MainControlView: View {
 
                 Divider()
 
-                if let chromiumBrowser = coordinator.selectedChromiumBrowser {
+                if let supportedBrowser = coordinator.selectedSupportedBrowser {
                     ChromiumWindowBanner(
-                        browser: chromiumBrowser,
+                        browser: supportedBrowser,
                         windowItem: windowItem,
                         coordinator: coordinator
                     )
@@ -564,6 +577,29 @@ struct MainControlView: View {
 }
 
 // MARK: - Sidebar Row Views
+
+private struct DevBuildBadgeView: View {
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "hammer.fill")
+                .font(.system(size: 10, weight: .bold))
+            Text("DEV")
+                .font(.system(size: 10.5, weight: .heavy, design: .monospaced))
+        }
+        .foregroundStyle(.orange)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(Color.orange.opacity(0.16), in: Capsule())
+        .overlay(
+            Capsule()
+                .strokeBorder(Color.orange.opacity(0.55), lineWidth: 1)
+        )
+        .help(
+            "Local development build (\(AppBuildIdentity.appName) • "
+                + "\(Bundle.main.bundleIdentifier ?? "unbundled"))"
+        )
+    }
+}
 
 private struct RegionPresetIconButton: View {
     let title: String

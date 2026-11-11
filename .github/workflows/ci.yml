@@ -32,5 +32,7 @@ jobs:
       - name: Build Debug
         run: swift build
 
-      - name: Build Universal Release App Bundle
-        run: ./build_app.sh --universal --skip-tcc-reset
+      - name: Build Local Dev & Universal Release App Bundles
+        run: |
+          ./build_app.sh --universal --skip-tcc-reset
+          ./build_app.sh --release --universal --skip-tcc-reset

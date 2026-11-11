@@ -1,9 +1,20 @@
 .build/
 .swiftpm/
 PeekPane.app/
+PeekPaneDev.app/
 dist/
 *.xcodeproj
 *.xcworkspace
 xcuserdata/
 DerivedData/
 .DS_Store
+
+# Never commit signing keys, certificates, or API credentials
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+.web-ext-config.js
+.web-ext-config.cjs

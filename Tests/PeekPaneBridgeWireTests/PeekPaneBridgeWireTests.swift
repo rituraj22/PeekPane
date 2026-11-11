@@ -10,8 +10,36 @@ final class PeekPaneBridgeWireTests: XCTestCase {
         XCTAssertEqual(derived, BridgeConstants.pinnedExtensionID)
         XCTAssertEqual(BridgeConstants.pinnedExtensionID.count, 32)
         XCTAssertTrue(BridgeSecurity.isAllowedExtensionOrigin(BridgeConstants.expectedExtensionOrigin))
+        XCTAssertTrue(BridgeSecurity.isAllowedExtensionOrigin("moz-extension://d3b07384-d113-4ec6-a7dc-e2a988123456"))
+        XCTAssertFalse(BridgeSecurity.isAllowedExtensionOrigin("moz-extension://not-a-valid-uuid"))
+        XCTAssertFalse(BridgeSecurity.isAllowedExtensionOrigin("moz-extension://d3b07384-d113-4ec6-a7dc-e2a988123456/"))
+        XCTAssertFalse(BridgeSecurity.isAllowedExtensionOrigin("chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
         XCTAssertFalse(BridgeSecurity.isAllowedExtensionOrigin("https://evil.example"))
         XCTAssertFalse(BridgeSecurity.isAllowedExtensionOrigin(nil))
+    }
+
+    func testJPEGVideoPacketRoundTripWithoutAVCC() throws {
+        let jpegBytes = Data([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0xFF, 0xD9])
+        let header = BridgeWireHeader(
+            isKeyframe: true,
+            hasAVCC: false,
+            tabID: 77,
+            sequenceNumber: 12,
+            timestampUs: 555_000,
+            viewportWidth: 1280,
+            viewportHeight: 800,
+            avcCLength: 0,
+            isJPEGFrame: true
+        )
+        let packet = BridgeVideoPacket(header: header, avcCData: nil, naluData: jpegBytes)
+        let encoded = packet.encode()
+        XCTAssertEqual(encoded.count, BridgeWireHeader.byteLength + jpegBytes.count)
+
+        let decoded = try BridgeVideoPacket.decode(from: encoded)
+        XCTAssertEqual(decoded, packet)
+        XCTAssertTrue(decoded.header.isJPEGFrame)
+        XCTAssertTrue(decoded.header.isKeyframe)
+        XCTAssertNil(decoded.avcCData)
     }
 
     func testKeyframeVideoPacketRoundTrip() throws {

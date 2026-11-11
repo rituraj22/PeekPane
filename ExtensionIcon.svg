@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <clipPath id="paneClip">
+      <rect x="8" y="8" width="112" height="72" rx="22" ry="22" />
+    </clipPath>
+    <linearGradient id="paneGrad" x1="4%" y1="4%" x2="96%" y2="96%">
+      <stop offset="0%" stop-color="#06B6D4" />
+      <stop offset="44%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#7C3AED" />
+    </linearGradient>
+    <radialGradient id="topLeftCushion" cx="18%" cy="14%" r="62%">
+      <stop offset="0%" stop-color="#67E8F9" stop-opacity="0.58" />
+      <stop offset="55%" stop-color="#38BDF8" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="glassWave" x1="10%" y1="0%" x2="55%" y2="70%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.24" />
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="paneRim" x1="4%" y1="0%" x2="96%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.62" />
+      <stop offset="50%" stop-color="#7DD3FC" stop-opacity="0.26" />
+      <stop offset="100%" stop-color="#E9D5FF" stop-opacity="0.48" />
+    </linearGradient>
+    <linearGradient id="deckStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06B6D4" />
+      <stop offset="48%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#6366F1" />
+    </linearGradient>
+    <linearGradient id="deckFill" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.20" />
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0.18" />
+    </linearGradient>
+  </defs>
+
+  <!-- 1. Floating Liquid-Glass Hero Pane (matches MenuBarIconRenderer silhouette) -->
+  <g clip-path="url(#paneClip)">
+    <rect x="8" y="8" width="112" height="72" fill="url(#paneGrad)" />
+    <rect x="8" y="8" width="112" height="72" fill="url(#topLeftCushion)" />
+    <path d="M 6 6 L 122 6 L 122 36 C 88 30, 50 52, 6 64 Z" fill="url(#glassWave)" />
+  </g>
+  <rect x="9.5" y="9.5" width="109" height="69" rx="20.5" ry="20.5"
+        fill="none"
+        stroke="url(#paneRim)"
+        stroke-width="3" />
+
+  <!-- 2. Crisp Interior Glyph (Orb + Two Capsules) -->
+  <circle cx="39" cy="44" r="14" fill="#FFFFFF" />
+  <rect x="63" y="31.5" width="37" height="11" rx="5.5" ry="5.5" fill="#FFFFFF" />
+  <rect x="63" y="47.5" width="26" height="11" rx="5.5" ry="5.5" fill="#FFFFFF" fill-opacity="0.84" />
+
+  <!-- 3. Perspective Base Deck -->
+  <path d="M 30 98 L 98 98 L 112 116 L 16 116 Z"
+        fill="url(#deckFill)"
+        stroke="url(#deckStroke)"
+        stroke-width="8.5"
+        stroke-linejoin="round" />
+</svg>
