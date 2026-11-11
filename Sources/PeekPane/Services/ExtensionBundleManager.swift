@@ -89,6 +89,22 @@ final class ExtensionBundleManager: ObservableObject {
         }
     }
 
+    func openFirefoxAddonsPage(in browser: SupportedBrowser) {
+        guard let url = URL(string: BridgeConstants.firefoxAddonsURLString) else { return }
+        if let appURL = browser.installedAppURL {
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            NSWorkspace.shared.open(
+                [url],
+                withApplicationAt: appURL,
+                configuration: config,
+                completionHandler: nil
+            )
+        } else {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     func openSignedFirefoxXPI(in browser: SupportedBrowser) {
         stageOptionalSignedFirefoxXPI()
         guard hasSignedFirefoxXPI else { return }

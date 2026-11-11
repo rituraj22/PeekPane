@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/rituraj22/PeekPane/releases/latest"><img src="https://img.shields.io/badge/Download-v2.0_Release-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Download Latest Release" /></a>
+  <a href="https://addons.mozilla.org/en-US/firefox/addon/peekpane-tab-extractor/"><img src="https://img.shields.io/badge/Firefox_&_Zen_Add--on-Install-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white" alt="Firefox & Zen Add-on" /></a>
   <img src="https://img.shields.io/badge/macOS-14.0%2B_(Sonoma_%2F_Sequoia_%2F_Tahoe)-1E293B?style=for-the-badge&logo=apple&logoColor=white" alt="macOS 14.0+" />
   <img src="https://img.shields.io/badge/Arch-Universal_(Apple_Silicon_%26_Intel)-334155?style=for-the-badge" alt="Universal Binary" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge" alt="MIT License" /></a>
@@ -97,8 +98,10 @@ Floating a browser window via `ScreenCaptureKit` works out of the box—and with
 
 * **Switch Tabs & Minimize Freely**: Keep a background tab streaming live (~24 FPS GPU `WebCodecs` H.264 on Chromium; ~12–15 FPS `tabs.captureTab` compositor snapshots on Firefox/Zen) even while you browse other tabs, minimize the browser window, or switch Spaces.
 * **Toolbar Click or `⌥⇧P` Direct Crop**: Click the PeekPane toolbar icon (or press **`⌥⇧P`**) on any tab, hover to auto-snap to any card/chart/video, drag a custom box, or press `Enter` / click **Float Full Tab**. PeekPane opens the floating pane immediately—starting silently in the background if it wasn't running yet.
-* **Guided One-Click Setup & Live Detection**: PeekPane automatically detects installed browsers and whether the extension is active on disk or connected live. Use the **Browser Tabs (No Toolbars)** section in the sidebar (or the contextual banner above any selected browser window) to install from `~/Library/Application Support/PeekPane/` or hand off directly to your browser.
-  > **Note on Firefox & Gecko forks:** Without a Mozilla-signed `.xpi`, loading `FirefoxExtension/manifest.json` via `about:debugging#/runtime/this-firefox` (*Load Temporary Add-on…*) stays active until the browser quits. Because Gecko lacks Chromium's `tabCapture` video API, Gecko tab extraction streams ~12–15 FPS snapshots—ideal for dashboards, tickers, trackers, and logs; for 60 FPS video in Firefox/Zen, use full-window capture or the browser's built-in Picture-in-Picture.
+* **Guided One-Click Setup & Live Detection**: PeekPane automatically detects installed browsers and whether the extension is active on disk or connected live:
+  * **Firefox, Zen Browser, LibreWolf, Floorp & Waterfox**: Install permanently in one click from [**Mozilla Add-ons (`PeekPane Tab Extractor`)**](https://addons.mozilla.org/en-US/firefox/addon/peekpane-tab-extractor/) (or click **Open in Firefox / Zen →** directly inside PeekPane's **Browser Tabs** setup sheet).
+  * **Chrome, Arc, Brave, Edge, Vivaldi & Chromium**: Use PeekPane's guided **Browser Tabs** setup sheet to load the staged extension from `~/Library/Application Support/PeekPane/Extension`.
+  > **Note on Gecko frame rate:** Because Gecko lacks Chromium's `tabCapture` video API, Firefox/Zen tab extraction streams ~12–15 FPS snapshots—ideal for dashboards, tickers, trackers, and logs; for 60 FPS video in Firefox/Zen, use full-window capture or the browser's built-in Picture-in-Picture.
 
 ---
 

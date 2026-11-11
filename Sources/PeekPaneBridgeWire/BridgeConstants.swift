@@ -22,6 +22,8 @@ public enum BridgeConstants {
     public static let expectedExtensionOrigin = "chrome-extension://\(pinnedExtensionID)"
     public static let firefoxExtensionID = "bridge@peekpane.app"
     public static let firefoxOriginSchemePrefix = "moz-extension://"
+    public static let firefoxAddonsURLString =
+        "https://addons.mozilla.org/en-US/firefox/addon/peekpane-tab-extractor/"
 
     public static func appSupportDirectoryURL(
         homeDirectoryURL: URL = FileManager.default.homeDirectoryForCurrentUser

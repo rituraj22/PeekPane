@@ -1,4 +1,5 @@
 import AppKit
+import PeekPaneBridgeWire
 import SwiftUI
 
 struct ExtensionSetupSheetView: View {
@@ -61,9 +62,10 @@ struct ExtensionSetupSheetView: View {
                     browser: browser,
                     shortcut: shortcut,
                     hasSignedXPI: extensionManager.hasSignedFirefoxXPI,
-                    xpiPath: extensionManager.stagedFirefoxSignedXPIURL.path,
-                    manifestPath: extensionManager.stagedFirefoxManifestURL.path,
                     copiedAddress: $copiedAddress,
+                    onOpenAddonsStore: {
+                        extensionManager.openFirefoxAddonsPage(in: browser)
+                    },
                     onInstallSignedXPI: {
                         extensionManager.openSignedFirefoxXPI(in: browser)
                     },
@@ -190,69 +192,57 @@ private struct GeckoSetupStepsView: View {
     let browser: SupportedBrowser
     let shortcut: String
     let hasSignedXPI: Bool
-    let xpiPath: String
-    let manifestPath: String
     @Binding var copiedAddress: Bool
+    let onOpenAddonsStore: () -> Void
     let onInstallSignedXPI: () -> Void
     let onRevealItem: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if hasSignedXPI {
-                SetupStepRow(
-                    number: "1",
-                    title: "Install the signed PeekPane add-on in \(browser.shortLabel)",
-                    subtitle: "Opens \(browser.shortLabel)'s native “Add PeekPane Tab Extractor?” prompt (\(xpiPath))."
-                ) {
-                    HStack(spacing: 8) {
-                        Button("Install in \(browser.shortLabel)…", action: onInstallSignedXPI)
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                        Button("Reveal .xpi in Finder", action: onRevealItem)
-                            .controlSize(.small)
-                    }
-                }
+            SetupStepRow(
+                number: "1",
+                title: "Install PeekPane Tab Extractor from Mozilla Add-ons",
+                subtitle:
+                    "Opens the official Firefox Add-ons listing in \(browser.shortLabel) "
+                    + "(\(BridgeConstants.firefoxAddonsURLString)) — click “Add to Firefox” to install permanently."
+            ) {
+                HStack(spacing: 8) {
+                    Button("Open in \(browser.shortLabel) →", action: onOpenAddonsStore)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
 
-                SetupStepRow(
-                    number: "2",
-                    title: "Switch to any webpage tab and click PeekPane (or press \(shortcut))",
-                    subtitle: "Snap an element, drag a custom box, or float the full tab."
-                ) {
-                    EmptyView()
-                }
-            } else {
-                SetupStepRow(
-                    number: "1",
-                    title: "Open about:debugging#/runtime/this-firefox in \(browser.shortLabel)",
-                    subtitle: "Paste the address into \(browser.shortLabel)'s URL bar."
-                ) {
-                    Button(copiedAddress ? "Copied!" : "Copy about:debugging URL") {
+                    Button(copiedAddress ? "Copied!" : "Copy Add-on Link") {
                         NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(browser.extensionsURLString, forType: .string)
+                        NSPasteboard.general.setString(BridgeConstants.firefoxAddonsURLString, forType: .string)
                         copiedAddress = true
                     }
                     .controlSize(.small)
-                }
 
-                SetupStepRow(
-                    number: "2",
-                    title: "Click “Load Temporary Add-on…” and select manifest.json",
-                    subtitle:
-                        "\(manifestPath)\n"
-                        + "Note: Unsigned Gecko add-ons stay loaded until \(browser.shortLabel) quits."
-                ) {
-                    Button("Reveal manifest.json in Finder", action: onRevealItem)
-                        .controlSize(.small)
-                }
-
-                SetupStepRow(
-                    number: "3",
-                    title: "Switch to any webpage tab and click PeekPane (or press \(shortcut))",
-                    subtitle: "Snap an element, drag a custom box, or float the full tab."
-                ) {
-                    EmptyView()
+                    if hasSignedXPI {
+                        Button("Install Offline .xpi", action: onInstallSignedXPI)
+                            .controlSize(.small)
+                    }
                 }
             }
+
+            SetupStepRow(
+                number: "2",
+                title: "Switch to any webpage tab and click PeekPane (or press \(shortcut))",
+                subtitle: "Snap an element, drag a custom box, or float the full tab."
+            ) {
+                EmptyView()
+            }
+
+            HStack(spacing: 6) {
+                Text("Testing a local build?")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                Button("Reveal unpacked manifest.json for about:debugging…", action: onRevealItem)
+                    .buttonStyle(.link)
+                    .controlSize(.mini)
+                    .font(.system(size: 11))
+            }
+            .padding(.leading, 30)
         }
     }
 }
