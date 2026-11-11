@@ -8,7 +8,7 @@ final class AppCoordinator: ObservableObject {
     @Published var activeSessions: [FloatingPlayerSession] = []
     @Published var selectedWindow: ShareableWindowItem?
     @Published var selectedPreviewImage: NSImage?
-    @Published var draftCropRect: NormalizedCropRect? = nil
+    @Published var draftCropRect: NormalizedCropRect?
     @Published var searchQuery: String = ""
 
     private var previewTask: Task<Void, Never>?
@@ -307,8 +307,7 @@ struct MainControlView: View {
                     ForEach(filteredWindows) { item in
                         WindowRowView(
                             item: item,
-                            thumbnail: discovery.thumbnails[item.windowID],
-                            isSelected: coordinator.selectedWindow?.windowID == item.windowID
+                            thumbnail: discovery.thumbnails[item.windowID]
                         )
                         .tag(item.windowID)
                     }
@@ -496,7 +495,8 @@ struct MainControlView: View {
             Text("Screen Recording Permission Required")
                 .font(.title2.weight(.semibold))
             Text(
-                "PeekPane uses macOS ScreenCaptureKit to stream the selected region of any window into an always-on-top floating pane. Please allow Screen Recording access in System Settings."
+                "PeekPane uses macOS ScreenCaptureKit to stream the selected region of any window "
+                    + "into an always-on-top floating pane. Please allow Screen Recording access in System Settings."
             )
             .font(.body)
             .foregroundStyle(.secondary)
@@ -556,7 +556,6 @@ private struct RegionPresetIconButton: View {
 private struct WindowRowView: View {
     let item: ShareableWindowItem
     let thumbnail: NSImage?
-    let isSelected: Bool
 
     var body: some View {
         HStack(spacing: 10) {
@@ -564,7 +563,7 @@ private struct WindowRowView: View {
                 if let thumbnail {
                     Image(nsImage: thumbnail)
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .scaledToFill()
                         .frame(width: 54, height: 36)
                         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                         .overlay(

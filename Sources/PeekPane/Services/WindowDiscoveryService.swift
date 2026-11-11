@@ -100,74 +100,8 @@ final class WindowDiscoveryService: ObservableObject {
 
             let currentPID = ProcessInfo.processInfo.processIdentifier
             let zOrderMap = Self.buildWindowZOrderMap(onScreenOnly: true)
-
-            struct CachedAppInfo {
-                let isRegular: Bool
-                let icon: NSImage?
-            }
-            var appInfoByPID: [pid_t: CachedAppInfo] = [:]
-            let fallbackIcon = NSWorkspace.shared.icon(for: .applicationBundle)
-
-            // Collect which apps have at least one titled window so we can ignore untitled helper/dummy windows
-            var appsWithTitledWindow = Set<pid_t>()
-            for w in content.windows where w.windowLayer == 0 && w.frame.width >= 80 && w.frame.height >= 60 {
-                let t = (w.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                if !t.isEmpty, let pid = w.owningApplication?.processID {
-                    appsWithTitledWindow.insert(pid)
-                }
-            }
-
-            let filtered: [ShareableWindowItem] = content.windows.compactMap { scWindow in
-                guard scWindow.windowLayer == 0 else { return nil }
-                guard scWindow.frame.width >= 80, scWindow.frame.height >= 60 else { return nil }
-                guard let app = scWindow.owningApplication else { return nil }
-                let pid = app.processID
-                guard pid != currentPID else { return nil }
-                if excludedBundleIDs.contains(app.bundleIdentifier) { return nil }
-                if excludedAppNames.contains(app.applicationName) { return nil }
-
-                let appInfo: CachedAppInfo
-                if let cached = appInfoByPID[pid] {
-                    appInfo = cached
-                } else {
-                    let runningApp = NSRunningApplication(processIdentifier: pid)
-                    let isRegular = runningApp.map { $0.activationPolicy == .regular } ?? true
-                    let icon = runningApp?.icon ?? fallbackIcon
-                    let created = CachedAppInfo(isRegular: isRegular, icon: icon)
-                    appInfoByPID[pid] = created
-                    appInfo = created
-                }
-
-                guard appInfo.isRegular else { return nil }
-
-                let title = (scWindow.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                let appName = app.applicationName.trimmingCharacters(in: .whitespacesAndNewlines)
-                if title.isEmpty && appName.isEmpty { return nil }
-
-                let isTrulyOnScreen = zOrderMap[scWindow.windowID] != nil
-                if !isTrulyOnScreen {
-                    // Exclude macOS off-screen 500x500 dummy windows and untitled off-screen windows
-                    if title.isEmpty { return nil }
-                    if Int(scWindow.frame.width) == 500 && Int(scWindow.frame.height) == 500 { return nil }
-                } else if title.isEmpty && appsWithTitledWindow.contains(pid) {
-                    // Exclude untitled auxiliary layer-0 windows when the app already has real titled windows
-                    return nil
-                }
-
-                return ShareableWindowItem(scWindow: scWindow, appIcon: appInfo.icon)
-            }
-
-            let sorted = filtered.sorted { a, b in
-                let rankA = zOrderMap[a.windowID] ?? Int.max
-                let rankB = zOrderMap[b.windowID] ?? Int.max
-                if rankA != rankB {
-                    return rankA < rankB
-                }
-                if a.isOnScreen != b.isOnScreen {
-                    return a.isOnScreen && !b.isOnScreen
-                }
-                return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
-            }
+            let filtered = filterWindows(content.windows, currentPID: currentPID, zOrderMap: zOrderMap)
+            let sorted = Self.sortWindows(filtered, zOrderMap: zOrderMap)
 
             if self.windows != sorted {
                 self.windows = sorted
@@ -256,5 +190,92 @@ final class WindowDiscoveryService: ObservableObject {
             }
         }
         return map
+    }
+
+    private struct CachedAppInfo {
+        let isRegular: Bool
+        let icon: NSImage?
+    }
+
+    private static func resolveAppInfo(
+        for app: SCRunningApplication,
+        cache: inout [pid_t: CachedAppInfo],
+        fallbackIcon: NSImage
+    ) -> CachedAppInfo {
+        let pid = app.processID
+        if let cached = cache[pid] {
+            return cached
+        }
+        let runningApp = NSRunningApplication(processIdentifier: pid)
+        let isRegular = runningApp.map { $0.activationPolicy == .regular } ?? true
+        let icon = runningApp?.icon ?? fallbackIcon
+        let created = CachedAppInfo(isRegular: isRegular, icon: icon)
+        cache[pid] = created
+        return created
+    }
+
+    /// Exclude macOS off-screen 500x500 dummy windows and untitled off-screen windows
+    private static func isOffScreenDummy(_ scWindow: SCWindow, title: String) -> Bool {
+        title.isEmpty || (Int(scWindow.frame.width) == 500 && Int(scWindow.frame.height) == 500)
+    }
+
+    private func filterWindows(
+        _ windows: [SCWindow],
+        currentPID: pid_t,
+        zOrderMap: [CGWindowID: Int]
+    ) -> [ShareableWindowItem] {
+        // Collect which apps have at least one titled window so we can ignore untitled helper/dummy windows
+        var appsWithTitledWindow = Set<pid_t>()
+        for w in windows where w.windowLayer == 0 && w.frame.width >= 80 && w.frame.height >= 60 {
+            let t = (w.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty, let pid = w.owningApplication?.processID {
+                appsWithTitledWindow.insert(pid)
+            }
+        }
+
+        var appInfoCache: [pid_t: CachedAppInfo] = [:]
+        let fallbackIcon = NSWorkspace.shared.icon(for: .applicationBundle)
+
+        return windows.compactMap { scWindow in
+            guard scWindow.windowLayer == 0, scWindow.frame.width >= 80, scWindow.frame.height >= 60 else { return nil }
+            guard let app = scWindow.owningApplication, app.processID != currentPID else { return nil }
+            if excludedBundleIDs.contains(app.bundleIdentifier) || excludedAppNames.contains(app.applicationName) {
+                return nil
+            }
+
+            let appInfo = Self.resolveAppInfo(for: app, cache: &appInfoCache, fallbackIcon: fallbackIcon)
+            guard appInfo.isRegular else { return nil }
+
+            let title = (scWindow.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let appName = app.applicationName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if title.isEmpty && appName.isEmpty { return nil }
+
+            let isTrulyOnScreen = zOrderMap[scWindow.windowID] != nil
+            if !isTrulyOnScreen {
+                if Self.isOffScreenDummy(scWindow, title: title) { return nil }
+            } else if title.isEmpty && appsWithTitledWindow.contains(app.processID) {
+                // Exclude untitled auxiliary layer-0 windows when the app already has real titled windows
+                return nil
+            }
+
+            return ShareableWindowItem(scWindow: scWindow, appIcon: appInfo.icon)
+        }
+    }
+
+    private static func sortWindows(
+        _ windows: [ShareableWindowItem],
+        zOrderMap: [CGWindowID: Int]
+    ) -> [ShareableWindowItem] {
+        windows.sorted { a, b in
+            let rankA = zOrderMap[a.windowID] ?? Int.max
+            let rankB = zOrderMap[b.windowID] ?? Int.max
+            if rankA != rankB {
+                return rankA < rankB
+            }
+            if a.isOnScreen != b.isOnScreen {
+                return a.isOnScreen && !b.isOnScreen
+            }
+            return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
+        }
     }
 }

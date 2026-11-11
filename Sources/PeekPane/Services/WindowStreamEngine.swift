@@ -1,4 +1,4 @@
-import AppKit
+import CoreGraphics
 import CoreMedia
 import CoreVideo
 import Foundation
@@ -189,8 +189,9 @@ final class WindowStreamEngine: NSObject, SCStreamOutput, SCStreamDelegate, @unc
             bounds.width >= 1, bounds.height >= 1
         {
             let newSize = bounds.size
-            if abs(newSize.width - lastConfiguredSize.width) > 2 || abs(newSize.height - lastConfiguredSize.height) > 2
-            {
+            let widthChanged = abs(newSize.width - lastConfiguredSize.width) > 2
+            let heightChanged = abs(newSize.height - lastConfiguredSize.height) > 2
+            if widthChanged || heightChanged {
                 lastConfiguredSize = newSize
                 if let stream {
                     let newConfig = Self.makeStreamConfig(for: newSize, showsCursor: showsCursor)
@@ -298,7 +299,7 @@ final class WindowStreamEngine: NSObject, SCStreamOutput, SCStreamDelegate, @unc
             let windowID = self.currentWindow.windowID
             let infoList = CGWindowListCopyWindowInfo([.optionIncludingWindow], windowID) as? [[String: Any]]
             let stillExists =
-                infoList?.contains(where: { ($0[kCGWindowNumber as String] as? UInt32) == windowID }) ?? false
+                infoList?.contains { ($0[kCGWindowNumber as String] as? UInt32) == windowID } ?? false
             await self.stopActiveStreamOnly()
             if !stillExists {
                 self.onStateChange?(false, false, true, "Source window was closed")

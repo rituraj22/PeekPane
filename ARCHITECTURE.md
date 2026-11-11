@@ -100,7 +100,7 @@ $$\text{x}, \text{y} \in [0, 1], \quad \text{width}, \text{height} \in [0.042, 1
 
 ---
 
-### 2.4 Pure AppKit Floating Player & Display-Cycle Safety (`FloatingPlayerPanel.swift`)
+### 2.4 Pure AppKit Floating Player & Display-Cycle Safety (`FloatingPlayerPanel.swift`, `VideoSurfaceNSView.swift`, `FloatingPlayerHUDViews.swift`)
 
 #### Why Zero `NSHostingView` and Zero Auto Layout?
 On macOS 26 (`SwiftUI 7.6+`), hosting a rapidly resized borderless `NSPanel`'s root view inside `NSHostingView` causes `NSHostingView.windowDidLayout()` to invoke `NSHostingView.updateAnimatedWindowSize(_:)` → `NSHostingView.invalidateSafeAreaCornerInsets()` → `-[NSView setNeedsUpdateConstraints:]` while `-[NSWindow layoutIfNeeded]` is currently executing on the display cycle. AppKit strictly forbids posting constraint updates during `layoutIfNeeded` and aborts with `SIGABRT` in `-[NSWindow(NSDisplayCycle) _postWindowNeedsUpdateConstraints]`.

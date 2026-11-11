@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import Foundation
 @preconcurrency import ScreenCaptureKit
 
@@ -11,33 +10,15 @@ struct NormalizedCropRect: Equatable, Sendable {
     var width: CGFloat
     var height: CGFloat
 
-    static let full = NormalizedCropRect(x: 0.0, y: 0.0, width: 1.0, height: 1.0)
-
-    var cgRect: CGRect {
-        CGRect(x: x, y: y, width: width, height: height)
-    }
-
-    init(x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-    }
-
-    init(rect: CGRect) {
-        self.x = rect.origin.x
-        self.y = rect.origin.y
-        self.width = rect.size.width
-        self.height = rect.size.height
-    }
+    static let full = Self(x: 0.0, y: 0.0, width: 1.0, height: 1.0)
 
     /// Clamps the crop rect to valid [0, 1] bounds with a minimum size.
-    func clamped(minSize: CGFloat = 0.042) -> NormalizedCropRect {
+    func clamped(minSize: CGFloat = 0.042) -> Self {
         let w = max(minSize, min(1.0, width))
         let h = max(minSize, min(1.0, height))
         let clampedX = max(0.0, min(1.0 - w, x))
         let clampedY = max(0.0, min(1.0 - h, y))
-        return NormalizedCropRect(x: clampedX, y: clampedY, width: w, height: h)
+        return Self(x: clampedX, y: clampedY, width: w, height: h)
     }
 
     /// Computes the size in points for a given window point size.
@@ -50,13 +31,13 @@ struct NormalizedCropRect: Equatable, Sendable {
     }
 
     /// Pans the normalized rect by delta fractions.
-    func panned(dx: CGFloat, dy: CGFloat) -> NormalizedCropRect {
-        NormalizedCropRect(x: x + dx, y: y + dy, width: width, height: height).clamped()
+    func panned(dx: CGFloat, dy: CGFloat) -> Self {
+        Self(x: x + dx, y: y + dy, width: width, height: height).clamped()
     }
 
     /// Zooms the normalized rect around its center while strictly preserving its aspect ratio.
     /// `scaleFactor < 1.0` zooms in; `> 1.0` zooms out. Stops cleanly when either dimension hits 1.0.
-    func zoomed(by scaleFactor: CGFloat, minSize: CGFloat = 0.042) -> NormalizedCropRect {
+    func zoomed(by scaleFactor: CGFloat, minSize: CGFloat = 0.042) -> Self {
         let c = clamped(minSize: minSize)
         let centerX = c.x + c.width * 0.5
         let centerY = c.y + c.height * 0.5
@@ -69,7 +50,7 @@ struct NormalizedCropRect: Equatable, Sendable {
         let newH = c.height * effectiveScale
         let newX = max(0.0, min(1.0 - newW, centerX - newW * 0.5))
         let newY = max(0.0, min(1.0 - newH, centerY - newH * 0.5))
-        return NormalizedCropRect(x: newX, y: newY, width: newW, height: newH)
+        return Self(x: newX, y: newY, width: newW, height: newH)
     }
 }
 
@@ -123,7 +104,7 @@ struct ShareableWindowItem: Identifiable, Hashable {
         }
     }
 
-    static func == (lhs: ShareableWindowItem, rhs: ShareableWindowItem) -> Bool {
+    static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.windowID == rhs.windowID && lhs.title == rhs.title && lhs.appName == rhs.appName && lhs.frame == rhs.frame
             && lhs.isOnScreen == rhs.isOnScreen
     }

@@ -20,6 +20,9 @@ jobs:
       - name: Swift version
         run: swift --version
 
+      - name: Install SwiftLint
+        run: command -v swiftlint >/dev/null 2>&1 || HOMEBREW_NO_AUTO_UPDATE=1 brew install swiftlint
+
       - name: Run Swift linter
         run: ./lint.sh
 

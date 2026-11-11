@@ -169,11 +169,14 @@ PeekPane/
     │   └── CaptureSessionModel.swift    # NormalizedCropRect math & ShareableWindowItem model
     ├── Services/
     │   ├── WindowDiscoveryService.swift # SCShareableContent + CGWindowList Z-order discovery
+    │   ├── WindowFocusHelper.swift      # AXUIElement + CGWindowList target window focus helper
     │   └── WindowStreamEngine.swift     # 60 FPS SCStream zero-copy IOSurface capture engine
     └── Views/
         ├── MainControlView.swift        # AppCoordinator & main window split-view UI
         ├── InteractiveCropCanvas.swift  # Interactive crop canvas with dynamic cursors
-        └── FloatingPlayerPanel.swift    # Pure AppKit NSPanel, VideoSurfaceNSView & HUD
+        ├── FloatingPlayerPanel.swift    # FloatingPlayerSession & pure AppKit NSPanel
+        ├── VideoSurfaceNSView.swift     # CALayer GPU surface, hit-testing & resize cursors
+        └── FloatingPlayerHUDViews.swift # Pure AppKit HUD controls, slider & banners
 ```
 
 For a deep dive into the rendering pipeline and coordinate math, see **[ARCHITECTURE.md](./ARCHITECTURE.md)**.

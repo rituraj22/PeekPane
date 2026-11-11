@@ -38,6 +38,9 @@ jobs:
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "tag=v${VERSION}" >> "${GITHUB_OUTPUT}"
 
+      - name: Install SwiftLint
+        run: command -v swiftlint >/dev/null 2>&1 || HOMEBREW_NO_AUTO_UPDATE=1 brew install swiftlint
+
       - name: Package Universal Release (.zip, .dmg, SHA256SUMS.txt)
         run: ./scripts/package_release.sh "${{ steps.meta.outputs.version }}"
 

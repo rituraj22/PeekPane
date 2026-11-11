@@ -171,13 +171,12 @@ struct InteractiveCropCanvas: View {
                 CropScrollReader(
                     fittedRect: fittedRect,
                     selectionRect: selectionPixelRect,
-                    activeDragMode: activeDragMode,
-                    onZoom: { zoomFactor in
-                        if let current = cropRect {
-                            cropRect = current.zoomed(by: zoomFactor)
-                        }
+                    activeDragMode: activeDragMode
+                ) { zoomFactor in
+                    if let current = cropRect {
+                        cropRect = current.zoomed(by: zoomFactor)
                     }
-                )
+                }
             )
             .contentShape(Rectangle())
             .gesture(
@@ -200,8 +199,7 @@ struct InteractiveCropCanvas: View {
                             initial: dragStartCrop,
                             currentPoint: value.location,
                             fittedRect: fittedRect,
-                            dxNorm: dxNorm,
-                            dyNorm: dyNorm
+                            deltaNorm: CGVector(dx: dxNorm, dy: dyNorm)
                         )
                     }
                     .onEnded { _ in
@@ -299,9 +297,10 @@ struct InteractiveCropCanvas: View {
         initial: NormalizedCropRect?,
         currentPoint: CGPoint,
         fittedRect: CGRect,
-        dxNorm: CGFloat,
-        dyNorm: CGFloat
+        deltaNorm: CGVector
     ) {
+        let dxNorm = deltaNorm.dx
+        let dyNorm = deltaNorm.dy
         let minFrac: CGFloat = 0.056
         if case .drawNew(let startNorm) = mode {
             let curNormX = max(0, min(1, (currentPoint.x - fittedRect.minX) / fittedRect.width))
