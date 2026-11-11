@@ -623,7 +623,7 @@ private final class FloatingHUDTopBarView: NSVisualEffectView {
     let opacitySlider = HUDOpacitySlider(frame: .zero)
     let ghostButton = HUDCircleButton(
         symbolName: "custom.ghost", toolTip: "Ghost mode (click-through). Hold ⌥ Option to interact while active.")
-    let closeButton = HUDCircleButton(symbolName: "xmark", toolTip: "Close floating player", isDestructive: true)
+    let closeButton = HUDCircleButton(symbolName: "xmark", toolTip: "Close floating pane", isDestructive: true)
 
     var onOpacityChanged: ((Double) -> Void)? {
         didSet {
@@ -2085,7 +2085,7 @@ final class FloatingPlayerSession: ObservableObject, Identifiable {
         floatingPanel.contentAspectRatio = nativeCropSize
         floatingPanel.minSize = NSSize(width: minW, height: minH)
         self.panel = floatingPanel
-        floatingPanel.makeKeyAndOrderFront(nil)
+        floatingPanel.orderFrontRegardless()
     }
 
     func updateCropRect(_ newCrop: NormalizedCropRect, resizeWindow: Bool = true) {
@@ -2190,15 +2190,18 @@ final class FloatingPlayerPanel: NSPanel {
 
         self.isReleasedWhenClosed = false
         self.isFloatingPanel = true
+        self.becomesKeyOnlyIfNeeded = true
         self.level = .statusBar
-        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        self.collectionBehavior = [.canJoinAllSpaces, .transient, .ignoresCycle, .fullScreenAuxiliary]
         self.hidesOnDeactivate = false
+        self.isExcludedFromWindowsMenu = true
         self.isMovableByWindowBackground = false
         self.isOpaque = false
         self.backgroundColor = .clear
         self.hasShadow = true
         self.titleVisibility = .hidden
         self.titlebarAppearsTransparent = true
+        self.setAccessibilitySubrole(.floatingWindow)
 
         let surfaceView = VideoSurfaceNSView(frame: NSRect(origin: .zero, size: contentRect.size))
         surfaceView.autoresizingMask = [.width, .height]
@@ -2210,6 +2213,6 @@ final class FloatingPlayerPanel: NSPanel {
         setFrame(frame, display: true, animate: animate)
     }
 
-    override var canBecomeKey: Bool { true }
+    override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }

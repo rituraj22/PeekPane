@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/rituraj22/PeekPane/releases/latest"><img src="https://img.shields.io/badge/Download-v1.2_Release-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Download Latest Release" /></a>
+  <a href="https://github.com/rituraj22/PeekPane/releases/latest"><img src="https://img.shields.io/badge/Download-v1.2.1_Release-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Download Latest Release" /></a>
   <img src="https://img.shields.io/badge/macOS-14.0%2B_(Sonoma_%2F_Sequoia)-1E293B?style=for-the-badge&logo=apple&logoColor=white" alt="macOS 14.0+" />
   <img src="https://img.shields.io/badge/Arch-Universal_(Apple_Silicon_%26_Intel)-334155?style=for-the-badge" alt="Universal Binary" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge" alt="MIT License" /></a>
@@ -39,7 +39,7 @@ Most macOS apps force an all-or-nothing choice: either dedicate half your screen
 Suppose you are tracking a live flight (**IndiGo `IGO6127`** on [Flightradar24](https://www.flightradar24.com/IGO6127/42835550)) in **Google Chrome** while writing Swift code in **Antigravity**. Instead of keeping the full browser window open, here is how **PeekPane** keeps just the live progress bar in view without ever blocking your editor:
 
 ### 1. ✂️ Cut Out the Clutter — Select, Crop & Float
-Pick any open window from the **PeekPane** sidebar and drag the 8-handle crop box tightly around the exact strip you want—here, just the **`PAT ✈ HYD` schedule & yellow flight progress bar**. Click **Create Floating Player** and switch back to your code editor.
+Pick any open window from the **PeekPane** sidebar and drag the 8-handle crop box tightly around the exact strip you want—here, just the **`PAT ✈ HYD` schedule & yellow flight progress bar**. Click **Create Floating Pane** and switch back to your code editor.
 
 <p align="center">
   <img src="assets/clip1-select-and-crop.gif" width="760" alt="Step 1: Select Flightradar24 in Chrome, crop just the PAT-HYD yellow progress bar, and float it over Antigravity" />
@@ -128,7 +128,7 @@ brew install --cask peekpane
 ```
 
 ### Option 2: Download Prebuilt `.dmg` or `.zip`
-Download [**`PeekPane-1.2-macos.dmg`**](https://github.com/rituraj22/PeekPane/releases/latest) or [**`PeekPane-1.2-macos.zip`**](https://github.com/rituraj22/PeekPane/releases/latest) from the [Releases](https://github.com/rituraj22/PeekPane/releases) page, drag **PeekPane.app** to `/Applications`, and launch it.
+Download [**`PeekPane-1.2.1-macos.dmg`**](https://github.com/rituraj22/PeekPane/releases/latest) or [**`PeekPane-1.2.1-macos.zip`**](https://github.com/rituraj22/PeekPane/releases/latest) from the [Releases](https://github.com/rituraj22/PeekPane/releases) page, drag **PeekPane.app** to `/Applications`, and launch it.
 
 ### Option 3: Build from Source
 ```bash
@@ -154,7 +154,7 @@ make release
 ```text
 PeekPane/
 ├── Package.swift                 # SwiftPM manifest (.macOS(.v14), strict concurrency)
-├── Info.plist                    # App bundle metadata (com.peekpane.app, v1.2)
+├── Info.plist                    # App bundle metadata (com.peekpane.app, v1.2.1)
 ├── Entitlements.plist            # macOS Screen Capture & Apple Events entitlements
 ├── AppIcon.svg                   # Liquid Glass vector app icon source
 ├── Makefile                      # Standardized build, lint, universal & release targets

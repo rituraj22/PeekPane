@@ -178,3 +178,10 @@ When `session.isClickThrough` is enabled:
   panel?.ignoresMouseEvents = isClickThrough && !isOptionKeyPressed
   ```
 - Holding `⌥ Option` immediately restores mouse interactivity and reveals the HUD on hover so the user can toggle Ghost Mode off or move/resize the player, and releasing `⌥ Option` resumes click-through. Users can also disable Ghost Mode across all players at any time from the macOS Menu Bar.
+
+---
+
+### 2.6 App Switcher (`⌘ + Tab`) & Window Switcher Isolation
+PeekPane ensures active floating panes never clutter `⌘ + Tab`, third-party window switchers (`AltTab`), Mission Control, or `⌘ + ~` window cycling:
+- **Dynamic Activation Policy (`AppDelegate`)**: While the main control window is open (or minimized in the Dock), `NSApp` runs with `.regular` activation policy. As soon as the main control window is closed, `AppDelegate` transitions `NSApp` to `.accessory` while keeping all `FloatingPlayerPanel` windows ordered front—removing PeekPane from `⌘ + Tab` and the Dock while floating panes and the Menu Bar item continue running. Reopening the main window from the Menu Bar or Spotlight (`applicationShouldHandleReopen`) restores `.regular` policy and brings the window to focus.
+- **Floating Panel Window Semantics (`FloatingPlayerPanel`)**: Configured with `[.borderless, .nonactivatingPanel]`, `collectionBehavior = [.canJoinAllSpaces, .transient, .ignoresCycle, .fullScreenAuxiliary]`, `isExcludedFromWindowsMenu = true`, `canBecomeKey = false`, and `setAccessibilitySubrole(.floatingWindow)` (`AXFloatingWindow`) so individual floating panes are ignored by window switchers, Mission Control, and keyboard window cycling without stealing focus from underlying apps.

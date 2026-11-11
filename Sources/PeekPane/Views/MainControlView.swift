@@ -256,7 +256,7 @@ struct MainControlView: View {
         }
     }
 
-    // MARK: - Sidebar (Open Windows + Active Floating Players)
+    // MARK: - Sidebar (Open Windows + Active Floating Panes)
 
     private var sidebarView: some View {
         let filteredWindows = coordinator.filteredWindows
@@ -296,7 +296,7 @@ struct MainControlView: View {
                 )
             ) {
                 if !coordinator.activeSessions.isEmpty {
-                    Section("Active Floating Players (\(coordinator.activeSessions.count))") {
+                    Section("Active Floating Panes (\(coordinator.activeSessions.count))") {
                         ForEach(coordinator.activeSessions) { session in
                             ActiveSessionRowView(session: session)
                         }
@@ -461,7 +461,7 @@ struct MainControlView: View {
                     Button {
                         coordinator.createFloatingPlayerFromDraft()
                     } label: {
-                        Label("Create Floating Player", systemImage: "pip.enter")
+                        Label("Create Floating Pane", systemImage: "pip.enter")
                             .fontWeight(.semibold)
                     }
                     .buttonStyle(.borderedProminent)
@@ -478,7 +478,7 @@ struct MainControlView: View {
                     .foregroundStyle(.secondary)
                 Text("Select a Window")
                     .font(.title3.weight(.semibold))
-                Text("Choose any open window from the sidebar to crop a region and create a floating player.")
+                Text("Choose any open window from the sidebar to crop a region and create a floating pane.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -496,7 +496,7 @@ struct MainControlView: View {
             Text("Screen Recording Permission Required")
                 .font(.title2.weight(.semibold))
             Text(
-                "PeekPane uses macOS ScreenCaptureKit to stream the selected region of any window into an always-on-top floating player. Please allow Screen Recording access in System Settings."
+                "PeekPane uses macOS ScreenCaptureKit to stream the selected region of any window into an always-on-top floating pane. Please allow Screen Recording access in System Settings."
             )
             .font(.body)
             .foregroundStyle(.secondary)
@@ -646,7 +646,7 @@ private struct ActiveSessionRowView: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.borderless)
-            .help("Close floating player")
+            .help("Close floating pane")
         }
         .padding(.vertical, 2)
     }
